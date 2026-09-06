@@ -7,11 +7,14 @@ import UrgencyBadge from './UrgencyBadge.jsx'
 // row (from /documents) — both carry the same keys.
 export default function FieldList({ fields }) {
   return (
-    <dl className="field-list">
+    <dl className="divide-y divide-border rounded-lg border border-border">
       {FIELD_LABELS.map(([key, label]) => (
-        <div className="field-row" key={key}>
-          <dt>{label}</dt>
-          <dd>
+        <div
+          key={key}
+          className="grid gap-1 px-4 py-3 sm:grid-cols-[10rem_1fr] sm:gap-4"
+        >
+          <dt className="text-sm text-muted-foreground">{label}</dt>
+          <dd className="text-sm">
             {key === 'urgency' ? (
               <UrgencyBadge value={fields?.[key]} />
             ) : (

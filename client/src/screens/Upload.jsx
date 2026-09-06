@@ -1,8 +1,20 @@
 import { useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { cn } from 'cn'
+import { CloudUpload } from 'lucide-react'
 import { processDocument } from '../api/index.js'
 import { ACCEPTED_TYPES, MAX_FILE_BYTES } from '../constants.js'
 import { useDocuments } from '../store.jsx'
+import { Button } from '@/components/ui/button'
+import { Spinner } from '@/components/ui/spinner'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
 import FieldList from '../components/FieldList.jsx'
 import ErrorMessage from '../components/ErrorMessage.jsx'
 
@@ -106,38 +118,67 @@ export default function Upload() {
   // ---- Result view (F3) ----
   if (phase === 'done' && result) {
     return (
-      <section>
-        <h1>Processed</h1>
-        <p className="state state--ok">
-          {result.notification_sent
-            ? 'Document processed and a notification was sent.'
-            : 'Document processed. No notification was sent.'}
-        </p>
-        <p>
-          <strong>{result.file_name}</strong> ·{' '}
-          <a href={result.file_link} target="_blank" rel="noreferrer">
-            Open file
-          </a>
-        </p>
-        <FieldList fields={result.fields} />
-        <div className="row-actions">
-          <button type="button" onClick={() => navigate(`/document/${result.document_id}`)}>
+      <section className="flex flex-col gap-6">
+        <div>
+          <h1 className="text-2xl">Processed</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {result.notification_sent
+              ? 'Document processed and a notification was sent.'
+              : 'Document processed. No notification was sent.'}
+          </p>
+        </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="truncate">{result.file_name}</CardTitle>
+            <CardDescription>
+              <a
+                href={result.file_link}
+                target="_blank"
+                rel="noreferrer"
+                className="font-medium text-primary underline-offset-4 hover:underline"
+              >
+                Open file
+              </a>
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <FieldList fields={result.fields} />
+          </CardContent>
+        </Card>
+
+        <div className="flex flex-wrap gap-3">
+          <Button
+            type="button"
+            onClick={() =>
+              navigate(
+                // Same identifier convention as DocumentCard: document_id when
+                // present, file_name as the pre-Workflow-A fallback.
+                `/document/${encodeURIComponent(result.document_id || result.file_name)}`,
+              )
+            }
+          >
             Open detail view
-          </button>
-          <button type="button" onClick={reset}>
+          </Button>
+          <Button type="button" variant="outline" onClick={reset}>
             Upload another
-          </button>
+          </Button>
         </div>
       </section>
     )
   }
 
   return (
-    <section>
-      <h1>Upload a document</h1>
+    <section className="flex flex-col gap-6">
+      <h1 className="text-2xl">Upload a document</h1>
 
       <div
-        className={`dropzone${dragging ? ' dropzone--active' : ''}`}
+        className={cn(
+          'flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border bg-muted/40 p-10 text-center transition-colors',
+          'hover:border-primary/50 hover:bg-accent/40',
+          'focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none',
+          dragging && 'border-primary bg-accent/60',
+        )}
         onDragOver={(e) => {
           e.preventDefault()
           setDragging(true)
@@ -149,8 +190,11 @@ export default function Upload() {
         tabIndex={0}
         onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && inputRef.current?.click()}
       >
-        <p>Drag a file here, or click to choose one.</p>
-        <p className="dropzone__hint">PDF, DOCX or TXT · up to {MAX_MB} MB</p>
+        <CloudUpload aria-hidden="true" className="size-8 text-muted-foreground" />
+        <p className="text-sm font-medium">Drag a file here, or click to choose one.</p>
+        <p className="text-xs text-muted-foreground">
+          PDF, DOCX or TXT, up to {MAX_MB} MB
+        </p>
         <input
           ref={inputRef}
           type="file"
@@ -161,22 +205,27 @@ export default function Upload() {
       </div>
 
       {localError && (
-        <p className="error-message" role="alert">
-          {localError}
-        </p>
+        <Alert variant="destructive">
+          <AlertTitle>File not accepted</AlertTitle>
+          <AlertDescription>{localError}</AlertDescription>
+        </Alert>
       )}
 
       {file && (
-        <p className="selected-file">
-          Selected: <strong>{file.name}</strong> ({(file.size / 1024).toFixed(0)} KB)
+        <p className="text-sm text-muted-foreground">
+          Selected: <span className="font-medium text-foreground">{file.name}</span>{' '}
+          <span className="tabular-nums">({(file.size / 1024).toFixed(0)} KB)</span>
         </p>
       )}
 
       {phase === 'processing' && (
-        <p className="state state--busy" aria-live="polite">
-          <span className="spinner" aria-hidden="true" /> Processing… this can take up to 90 seconds.
-          Please keep this tab open.
-        </p>
+        <Alert role="status" aria-live="polite">
+          <Spinner />
+          <AlertTitle>Processing…</AlertTitle>
+          <AlertDescription>
+            This can take up to 90 seconds. Please keep this tab open.
+          </AlertDescription>
+        </Alert>
       )}
 
       {phase === 'error' && (
@@ -187,14 +236,19 @@ export default function Upload() {
         />
       )}
 
-      <div className="row-actions">
-        <button type="button" onClick={onSend} disabled={!file || phase === 'processing'}>
+      <div className="flex flex-wrap gap-3">
+        <Button type="button" onClick={onSend} disabled={!file || phase === 'processing'}>
           {phase === 'processing' ? 'Processing…' : 'Send for processing'}
-        </button>
+        </Button>
         {(file || phase === 'error') && (
-          <button type="button" onClick={reset} disabled={phase === 'processing'}>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={reset}
+            disabled={phase === 'processing'}
+          >
             Clear
-          </button>
+          </Button>
         )}
       </div>
     </section>

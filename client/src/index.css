@@ -1,0 +1,172 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+  Smart Office Document Assistant — visual system.
+  Modern, friendly, calm: warm paper ground, warm-neutral surfaces, a single
+  muted plum-rose accent for primary actions and links. Deliberately kept clear
+  of red / amber / green so the accent never competes with the semantic urgency
+  badges (those colours live in src/constants.js and are never restyled).
+*/
+:root {
+  --radius: 0.75rem;
+
+  --background: #faf8f5;
+  --foreground: #2b2521;
+
+  --card: #ffffff;
+  --card-foreground: #2b2521;
+
+  --popover: #ffffff;
+  --popover-foreground: #2b2521;
+
+  --primary: #8c4257;
+  --primary-foreground: #ffffff;
+
+  --secondary: #f1ede8;
+  --secondary-foreground: #3a332e;
+
+  --muted: #f3efe9;
+  --muted-foreground: #6b625a;
+
+  --accent: #f4ebee;
+  --accent-foreground: #6d3446;
+
+  --destructive: #b42318;
+  --destructive-foreground: #ffffff;
+
+  --border: #e7e1d9;
+  --input: #e2dbd1;
+  --ring: #8c4257;
+
+  --chart-1: #8c4257;
+  --chart-2: #c98a2b;
+  --chart-3: #4c7a5b;
+  --chart-4: #7d5a8c;
+  --chart-5: #b5533b;
+
+  --sidebar: #f7f3ee;
+  --sidebar-foreground: #2b2521;
+  --sidebar-primary: #8c4257;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #f1ede8;
+  --sidebar-accent-foreground: #3a332e;
+  --sidebar-border: #e7e1d9;
+  --sidebar-ring: #8c4257;
+}
+
+.dark {
+  --background: #211c19;
+  --foreground: #f2ece5;
+
+  --card: #2a2420;
+  --card-foreground: #f2ece5;
+
+  --popover: #2a2420;
+  --popover-foreground: #f2ece5;
+
+  --primary: #d98aa0;
+  --primary-foreground: #2a1119;
+
+  --secondary: #322b26;
+  --secondary-foreground: #f2ece5;
+
+  --muted: #322b26;
+  --muted-foreground: #b3a89d;
+
+  --accent: #3a302f;
+  --accent-foreground: #f2ece5;
+
+  --destructive: #e5675b;
+  --destructive-foreground: #2a1119;
+
+  --border: #3b332d;
+  --input: #443b34;
+  --ring: #d98aa0;
+
+  --chart-1: #d98aa0;
+  --chart-2: #e0a13c;
+  --chart-3: #7db892;
+  --chart-4: #b79ac8;
+  --chart-5: #e08a6f;
+
+  --sidebar: #2a2420;
+  --sidebar-foreground: #f2ece5;
+  --sidebar-primary: #d98aa0;
+  --sidebar-primary-foreground: #2a1119;
+  --sidebar-accent: #322b26;
+  --sidebar-accent-foreground: #f2ece5;
+  --sidebar-border: #3b332d;
+  --sidebar-ring: #d98aa0;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  --font-sans: 'Hanken Grotesk', ui-sans-serif, system-ui, -apple-system,
+    'Segoe UI', Roboto, sans-serif;
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  html {
+    color-scheme: light;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: 'ss01', 'cv05';
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Calm, deliberate headings: weight and tracking instead of a second family. */
+  h1 {
+    @apply text-pretty font-semibold tracking-tight;
+  }
+
+  h2 {
+    @apply font-semibold tracking-tight;
+  }
+}

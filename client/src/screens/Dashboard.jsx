@@ -1,5 +1,23 @@
 import { useMemo, useState } from 'react'
+import { Search } from 'lucide-react'
 import { useDocuments } from '../store.jsx'
+import { Input } from '@/components/ui/input'
+import { Button } from '@/components/ui/button'
+import { Skeleton } from '@/components/ui/skeleton'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyTitle,
+} from '@/components/ui/empty'
 import DocumentCard from '../components/DocumentCard.jsx'
 import ErrorMessage from '../components/ErrorMessage.jsx'
 
@@ -58,54 +76,107 @@ export default function Dashboard() {
     setFilters({})
   }
 
-  if (loading) return <p className="state">Loading documents…</p>
+  if (loading) {
+    return (
+      <div className="flex flex-col gap-3">
+        {[0, 1, 2].map((i) => (
+          <div key={i} className="rounded-xl border border-border bg-card p-5">
+            <Skeleton className="h-5 w-48" />
+            <Skeleton className="mt-3 h-4 w-full" />
+            <Skeleton className="mt-1.5 h-4 w-2/3" />
+            <Skeleton className="mt-4 h-4 w-40" />
+          </div>
+        ))}
+      </div>
+    )
+  }
   if (error) return <ErrorMessage error={error} onRetry={refresh} />
 
   return (
-    <section>
-      <h1>Documents</h1>
+    <section className="flex flex-col gap-6">
+      <div>
+        <h1 className="text-2xl">Documents</h1>
+        <p className="mt-1 text-sm text-muted-foreground tabular-nums">
+          {visible.length === documents.length
+            ? `${documents.length} ${documents.length === 1 ? 'document' : 'documents'}`
+            : `${visible.length} of ${documents.length} documents`}
+        </p>
+      </div>
 
-      <div className="controls">
-        <input
-          type="search"
-          placeholder="Search file name, sender, or summary…"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          aria-label="Search documents"
-        />
-        {FILTER_KEYS.map(([key, label]) => (
-          <label key={key}>
-            {label}
-            <select value={filters[key] || ''} onChange={(e) => setFilter(key, e.target.value)}>
-              <option value="">All</option>
-              {options[key].map((v) => (
-                <option key={v} value={v}>
-                  {v}
-                </option>
-              ))}
-            </select>
-          </label>
-        ))}
-        {hasActiveControls && (
-          <button type="button" onClick={clearAll}>
-            Clear
-          </button>
-        )}
+      <div className="flex flex-col gap-3">
+        <div className="relative">
+          <Search
+            aria-hidden="true"
+            className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+          />
+          <Input
+            type="search"
+            placeholder="Search file name, sender, or summary…"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            aria-label="Search documents"
+            className="pl-9"
+          />
+        </div>
+
+        <div className="flex flex-wrap gap-2">
+          {FILTER_KEYS.map(([key, label]) => (
+            <Select
+              key={key}
+              value={filters[key] || 'all'}
+              onValueChange={(v) => setFilter(key, v === 'all' ? '' : v)}
+            >
+              <SelectTrigger className="w-38" aria-label={label}>
+                <SelectValue placeholder={label} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All {label.toLowerCase()}</SelectItem>
+                {options[key].map((v) => (
+                  <SelectItem key={v} value={v}>
+                    {v}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ))}
+          {hasActiveControls && (
+            <Button type="button" variant="ghost" size="sm" onClick={clearAll}>
+              Clear
+            </Button>
+          )}
+        </div>
       </div>
 
       {documents.length === 0 ? (
-        <p className="state">No documents have been processed yet.</p>
+        <Empty className="border border-border">
+          <EmptyHeader>
+            <EmptyTitle>No documents yet</EmptyTitle>
+            <EmptyDescription>
+              No documents have been processed yet.
+            </EmptyDescription>
+          </EmptyHeader>
+        </Empty>
       ) : visible.length === 0 ? (
-        <p className="state">
-          No documents match your search and filters.{' '}
-          <button type="button" className="link" onClick={clearAll}>
-            Clear all
-          </button>
-        </p>
+        <Empty className="border border-border">
+          <EmptyHeader>
+            <EmptyTitle>No matches</EmptyTitle>
+            <EmptyDescription>
+              No documents match your search and filters.
+            </EmptyDescription>
+          </EmptyHeader>
+          <EmptyContent>
+            <Button type="button" variant="outline" size="sm" onClick={clearAll}>
+              Clear all
+            </Button>
+          </EmptyContent>
+        </Empty>
       ) : (
-        <div className="doc-list">
+        <div className="flex flex-col gap-3">
           {visible.map((d) => (
-            <DocumentCard key={d.document_id} doc={d} />
+            // document_id is empty until Workflow A exists (M4); fall back to the
+            // file_name, which is unique in the current dataset. Once Workflow A
+            // populates document_id this naturally prefers it.
+            <DocumentCard key={d.document_id || d.file_name} doc={d} />
           ))}
         </div>
       )}

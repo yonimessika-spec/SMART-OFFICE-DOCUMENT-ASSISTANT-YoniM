@@ -1,3 +1,6 @@
+import { TriangleAlert } from 'lucide-react'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Button } from '@/components/ui/button'
 import { ERROR_MESSAGES, GENERIC_ERROR } from '../constants.js'
 
 // Turns any failure into one plain-language sentence (SPEC.md F7).
@@ -14,13 +17,16 @@ export function messageFor(errorOrCode) {
 
 export default function ErrorMessage({ code, error, onRetry }) {
   return (
-    <div className="error-message" role="alert">
-      <p>{messageFor(code ?? error)}</p>
-      {onRetry && (
-        <button type="button" onClick={onRetry}>
-          Try again
-        </button>
-      )}
-    </div>
+    <Alert variant="destructive">
+      <TriangleAlert aria-hidden="true" />
+      <AlertDescription className="gap-3">
+        <p>{messageFor(code ?? error)}</p>
+        {onRetry && (
+          <Button type="button" variant="outline" size="sm" onClick={onRetry}>
+            Try again
+          </Button>
+        )}
+      </AlertDescription>
+    </Alert>
   )
 }

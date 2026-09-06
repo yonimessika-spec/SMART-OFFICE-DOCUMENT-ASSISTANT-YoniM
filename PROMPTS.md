@@ -178,3 +178,151 @@ needed. Port 3001 conflicted with another local project — moved server to
 5055 in both .env and .env.example (client + server). Needed to learn that
 the server has no browser page of its own (only the client's port is ever
 opened directly).
+
+---
+
+## Entry 3 — Visual restyle (Tailwind + shadcn/ui)
+
+**Date:** 2026-09-06
+
+### Prompt
+
+> Consult the frontend-design skill for overall aesthetic direction and
+> typography, the web-design-guidelines skill for concrete web UI conventions,
+> and the shadcn/ui skill to add and use its component library.
+>
+> Direction: modern and friendly — rounded corners, a warmer accent color,
+> generous whitespace — but this is an internal office tool, not a marketing
+> site, so keep it calm and uncluttered, not playful or busy.
+>
+> 1. Set up Tailwind + initialize shadcn/ui. Define a small, warm palette and one
+>    accent color for primary actions and links/nav. The urgency badges
+>    (red/amber/green for High/Medium/Low) are semantic — restyle their
+>    shape/spacing but never change the colour→level mapping, and keep the text
+>    label inside every badge.
+> 2. Restyle the shared nav in App.jsx using shadcn/ui components.
+> 3. Restyle Dashboard: cards, search input, filter selects — warmer neutral
+>    background, rounded cards, clearer hierarchy.
+> 4. Restyle Upload and DocumentDetail with the same tokens/components.
+>
+> Styling-only pass — F1–F6 must keep working exactly. Don't touch
+> `client/src/api/`, don't change component logic, only markup/styling.
+
+### Decision taken during the task
+
+- **Accent colour** (asked): **muted plum-rose `#8C4257`** for primary actions
+  and links/nav. Deliberately clear of the red/amber/green urgency hues so it
+  never reads as a status signal; also steers away from the cream +
+  terracotta (`#D97757`) combo the frontend-design skill flags as a current
+  generated-design tell.
+
+### What changed
+
+- **Tooling**: added `tailwindcss` v4 + `@tailwindcss/vite`, `tw-animate-css`,
+  `lucide-react`, `class-variance-authority`; `@/` alias in `vite.config.js` +
+  `jsconfig.json`; `components.json` (new-york, `tsx:false`, stone base).
+  shadcn CLI added `src/components/ui/*` (button, card, input, select, badge,
+  separator, alert, textarea, label, spinner, field, empty, skeleton) — these
+  import `cn` from the `cn` package (this CLI version's default, not
+  `@/lib/utils`).
+- **`src/index.css`** (new, replaces `styles.css`): warm token palette —
+  paper-white `#FAF8F5` ground, warm-brown-black text, warm-stone neutrals,
+  plum-rose `--primary`/`--ring`, `--radius` 0.75rem. `@theme inline` map +
+  base layer. `styles.css` deleted; `main.jsx` imports `index.css`.
+- **`index.html`**: Hanken Grotesk via `<link>` + preconnect; `theme-color`.
+- **Screens/components** — markup + classes only, all state/handlers/effects
+  and `validate`/`toBase64`/`messageFor` untouched:
+  - `App.jsx` — sticky header, nav links styled with `buttonVariants` (active =
+    plum tint), mock indicator → `Badge`.
+  - `Dashboard.jsx` — `Input` (search), `Select` ×4 (an "All …" item maps to
+    the existing empty-string clear so `filters` shape is unchanged), `Empty`
+    for both empty/no-results states, `Skeleton` rows for loading. Added a
+    subtitle count that reflects the filtered view (`N` / `N of M`).
+  - `DocumentCard.jsx` — fully-clickable `Link` card; filename / summary
+    (line-clamp-2) / metadata (`Badge` chips, no middle-dot string) hierarchy.
+  - `Upload.jsx` — restyled dropzone (handlers intact), `Alert`+`Spinner`
+    processing state, `Card` result view, `Button`s.
+  - `DocumentDetail.jsx` — `Card`s for fields + review, `Field`/`FieldGroup`
+    + `Textarea`, submit `Button` composes `Spinner`, `Empty` for "not loaded".
+  - `UrgencyBadge.jsx` — rounder pill, roomier padding, a leading dot; colours
+    still read straight from `URGENCY_STYLES` / `URGENCY_FALLBACK`, label
+    `"Urgency: <value>"` unchanged.
+  - `FieldList.jsx` — keeps `<dl>/<dt>/<dd>`, restyled as a bordered divided
+    list. `FieldValue.jsx` / `ErrorMessage.jsx` — tokenised; `ErrorMessage`
+    now renders a destructive `Alert`; `messageFor` unchanged.
+
+### Verification done
+
+- `client` `npm run build` passes (bundle ~319 kB JS / ~42 kB CSS).
+- Browser (client → proxy → fake-n8n, 7-row dataset): Dashboard list + filter +
+  no-results + error + skeleton; DocumentCard hierarchy; DocumentDetail fields +
+  **F6 review submitted end-to-end** (status → Reviewed, note shown, success
+  line); Upload **F1 select + F3 result view** (all 7 fields, badge, link);
+  "document not loaded" empty state; mobile (375px) header + filter wrap.
+  Urgency colours preserved incl. empty urgency → grey "Not found" pill.
+- `git status` confirms `client/src/api/`, `store.jsx`, `constants.js`, and
+  `server/` untouched.
+
+### Known follow-ups (not in scope)
+
+- `clsx` + `tailwind-merge` are now unused (the `cn` package supersedes them);
+  left installed to avoid churn.
+- No dark-mode toggle wired — `color-scheme: light`; `.dark` tokens exist but
+  are dormant.
+- F2 processing state (≈600 ms with the mock) was built to match (`Alert` +
+  `Spinner`) but not caught on camera.
+
+### Corrections needed:
+
+(to be filled in by hand after testing)
+
+---
+
+## Entry 4 — Temporary file_name identifier bridge (pre-Workflow A)
+
+**Date:** 2026-09-06
+
+### Prompt
+
+> Two related bugs, same root cause: `document_id` is empty for every real
+> document right now (nothing writes that column until Workflow A, a later
+> milestone). Until then, fall back to `file_name` as the identifier
+> everywhere a document needs a stable unique reference:
+> 1. Dashboard.jsx list key → `key={document.document_id || document.file_name}`
+> 2. The route/link from a Dashboard card into DocumentDetail, and
+>    DocumentDetail's lookup — both currently rely on `document_id`. Use
+>    `document_id` when present, `file_name` when empty, consistently on both
+>    the linking and lookup sides so they always agree.
+>
+> Temporary bridge, not a redesign — the fallback stops being reached once
+> Workflow A populates `document_id`.
+
+### What changed (all in `client/src/`)
+
+- `screens/Dashboard.jsx` — list key already `key={d.document_id || d.file_name}`.
+- `components/DocumentCard.jsx` — `const ref = doc.document_id || doc.file_name`;
+  link is `` `/document/${encodeURIComponent(ref)}` ``.
+- `screens/DocumentDetail.jsx` — lookup is
+  `documents.find((d) => (d.document_id || d.file_name) === id)`
+  (`id` from `useParams` is already URL-decoded).
+- `screens/Upload.jsx` — the "Open detail view" button uses the same
+  `encodeURIComponent(result.document_id || result.file_name)` convention.
+
+### Verified
+
+- `npm run build` passes.
+- Browser, proxy serving 7 rows with `document_id: ""`: dashboard renders with
+  no duplicate-key warning; clicking `cohen-urgent.txt` navigates to
+  `/document/cohen-urgent.txt` and DocumentDetail loads the correct row.
+
+### Not touched (out of scope for this bridge)
+
+- The `/api/review` payload and `store.applyReview` still key on the raw
+  `doc.document_id`. Review already can't succeed with an empty `document_id`
+  (CONTRACT §5 needs a real Sheet ID; mock + real both 404), so no state
+  corruption — but it's the next thing to revisit when Workflow A lands or if
+  review is wired against Workflow B sooner.
+
+### Corrections needed:
+
+(to be filled in by hand after testing)

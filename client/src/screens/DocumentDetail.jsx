@@ -1,7 +1,27 @@
 import { useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
+import { cn } from 'cn'
+import { ChevronLeft, CircleCheck } from 'lucide-react'
 import { reviewDocument } from '../api/index.js'
 import { useDocuments } from '../store.jsx'
+import { buttonVariants, Button } from '@/components/ui/button'
+import { Spinner } from '@/components/ui/spinner'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
+import { Textarea } from '@/components/ui/textarea'
+import { Field, FieldDescription, FieldGroup, FieldLabel } from '@/components/ui/field'
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyTitle,
+} from '@/components/ui/empty'
 import FieldList from '../components/FieldList.jsx'
 import FieldValue from '../components/FieldValue.jsx'
 import ErrorMessage from '../components/ErrorMessage.jsx'
@@ -17,19 +37,34 @@ const NOTE_MAX = 200
 export default function DocumentDetail() {
   const { id } = useParams()
   const { documents, loading, applyReview } = useDocuments()
-  const doc = useMemo(() => documents.find((d) => d.document_id === id), [documents, id])
+  // Match the identifier DocumentCard / Upload put in the URL: prefer
+  // document_id, fall back to file_name while document_id is still empty
+  // (pre-Workflow A). `id` from useParams is already URL-decoded.
+  const doc = useMemo(
+    () => documents.find((d) => (d.document_id || d.file_name) === id),
+    [documents, id],
+  )
 
   const [note, setNote] = useState('')
   const [phase, setPhase] = useState('idle') // idle | saving | done | error
   const [error, setError] = useState(null)
 
-  if (loading) return <p className="state">Loading…</p>
+  if (loading) return <p className="text-muted-foreground">Loading…</p>
   if (!doc) {
     return (
-      <section>
-        <p className="state">No document with ID “{id}” is loaded.</p>
-        <Link to="/">Back to documents</Link>
-      </section>
+      <Empty className="border border-border">
+        <EmptyHeader>
+          <EmptyTitle>Document not loaded</EmptyTitle>
+          <EmptyDescription>
+            No document with ID “{id}” is loaded.
+          </EmptyDescription>
+        </EmptyHeader>
+        <EmptyContent>
+          <Link to="/" className={buttonVariants({ variant: 'outline', size: 'sm' })}>
+            Back to documents
+          </Link>
+        </EmptyContent>
+      </Empty>
     )
   }
 
@@ -61,57 +96,98 @@ export default function DocumentDetail() {
   const alreadyReviewed = doc.status === 'Reviewed'
 
   return (
-    <section>
-      <p>
-        <Link to="/">← All documents</Link>
-      </p>
-      <h1>{doc.file_name}</h1>
-      <p className="doc-detail__meta">
-        {/* received_at is an opaque display string from n8n — show it as-is. */}
-        ID {doc.document_id} · received {doc.received_at} · status{' '}
-        <FieldValue value={doc.status} />
-      </p>
-      <p>
-        <a href={doc.file_link} target="_blank" rel="noreferrer">
-          Open file
-        </a>
-      </p>
-
-      <FieldList fields={doc} />
-
-      {doc.review_note ? (
-        <p className="review-note">
-          Review note: <FieldValue value={doc.review_note} />
-        </p>
-      ) : null}
-
-      <form className="review-form" onSubmit={onSubmit}>
-        <h2>Review</h2>
-        {alreadyReviewed && phase !== 'done' && (
-          <p className="state">This document is already marked as Reviewed. Submitting again will update the note.</p>
+    <section className="flex flex-col gap-6">
+      <Link
+        to="/"
+        className={cn(
+          buttonVariants({ variant: 'ghost', size: 'sm' }),
+          '-ml-3 self-start text-muted-foreground',
         )}
-        <label>
-          Note (optional, {NOTE_MAX} characters max)
-          <textarea
-            value={note}
-            maxLength={NOTE_MAX}
-            onChange={(e) => setNote(e.target.value)}
-            rows={3}
-          />
-          <span className="char-count">
-            {note.length}/{NOTE_MAX}
-          </span>
-        </label>
+      >
+        <ChevronLeft aria-hidden="true" />
+        All documents
+      </Link>
 
-        {phase === 'error' && <ErrorMessage error={error} onRetry={() => setPhase('idle')} />}
-        {phase === 'done' && (
-          <p className="state state--ok">Saved. This document is now marked as Reviewed.</p>
-        )}
+      <Card>
+        <CardHeader>
+          <CardTitle className="truncate text-xl">{doc.file_name}</CardTitle>
+          <CardDescription className="flex flex-wrap items-center gap-x-4 gap-y-1">
+            <span>
+              {/* received_at is an opaque display string from n8n — show it as-is. */}
+              Received{' '}
+              <span className="text-foreground tabular-nums">{doc.received_at}</span>
+            </span>
+            <span className="flex items-center gap-1">
+              Status <FieldValue value={doc.status} />
+            </span>
+            <a
+              href={doc.file_link}
+              target="_blank"
+              rel="noreferrer"
+              className="font-medium text-primary underline-offset-4 hover:underline"
+            >
+              Open file
+            </a>
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <FieldList fields={doc} />
+          {doc.review_note ? (
+            <p className="mt-4 rounded-lg bg-muted px-4 py-3 text-sm">
+              <span className="text-muted-foreground">Review note: </span>
+              <FieldValue value={doc.review_note} />
+            </p>
+          ) : null}
+        </CardContent>
+      </Card>
 
-        <button type="submit" disabled={phase === 'saving'}>
-          {phase === 'saving' ? 'Saving…' : 'Mark as reviewed'}
-        </button>
-      </form>
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Review</CardTitle>
+          {alreadyReviewed && phase !== 'done' && (
+            <CardDescription>
+              This document is already marked as Reviewed. Submitting again will
+              update the note.
+            </CardDescription>
+          )}
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={onSubmit}>
+            <FieldGroup>
+              <Field>
+                <FieldLabel htmlFor="review-note">Note (optional)</FieldLabel>
+                <Textarea
+                  id="review-note"
+                  value={note}
+                  maxLength={NOTE_MAX}
+                  onChange={(e) => setNote(e.target.value)}
+                  rows={3}
+                />
+                <FieldDescription className="tabular-nums">
+                  {note.length}/{NOTE_MAX} characters
+                </FieldDescription>
+              </Field>
+
+              {phase === 'error' && (
+                <ErrorMessage error={error} onRetry={() => setPhase('idle')} />
+              )}
+              {phase === 'done' && (
+                <p className="flex items-center gap-2 text-sm font-medium">
+                  <CircleCheck aria-hidden="true" className="size-4 text-primary" />
+                  Saved. This document is now marked as Reviewed.
+                </p>
+              )}
+
+              <Field orientation="horizontal">
+                <Button type="submit" disabled={phase === 'saving'}>
+                  {phase === 'saving' && <Spinner />}
+                  {phase === 'saving' ? 'Saving…' : 'Mark as reviewed'}
+                </Button>
+              </Field>
+            </FieldGroup>
+          </form>
+        </CardContent>
+      </Card>
     </section>
   )
 }
