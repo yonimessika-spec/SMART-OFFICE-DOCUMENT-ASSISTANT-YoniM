@@ -1,0 +1,141 @@
+:root {
+  --fg: #1c1c1c;
+  --muted: #5c5c5c;
+  --line: #dcdcdc;
+  --bg: #fafafa;
+  --accent: #1f5c9e;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  color: var(--fg);
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); }
+
+.app__header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem 1.25rem;
+  border-bottom: 1px solid var(--line);
+  background: #fff;
+}
+.app__title { font-weight: 700; }
+.app__header nav { display: flex; gap: 0.75rem; }
+.app__header nav a { text-decoration: none; color: var(--muted); }
+.app__header nav a.active { color: var(--accent); font-weight: 600; }
+.app__badge {
+  margin-left: auto;
+  font-size: 0.7rem;
+  letter-spacing: 0.05em;
+  background: #fff4e5;
+  border: 1px solid #e0a13c;
+  color: #8a5a00;
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+}
+
+.app__main { max-width: 880px; margin: 0 auto; padding: 1.5rem 1.25rem; }
+
+h1 { font-size: 1.4rem; }
+h2 { font-size: 1.1rem; }
+
+.state { color: var(--muted); padding: 0.5rem 0; }
+.state--ok { color: #1e5631; }
+.state--busy { color: var(--accent); display: flex; align-items: center; gap: 0.5rem; }
+
+.spinner {
+  width: 14px; height: 14px;
+  border: 2px solid #cbd8e6;
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  display: inline-block;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Controls */
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: flex-end;
+  margin: 1rem 0;
+}
+.controls input[type="search"] { flex: 1 1 240px; padding: 0.4rem 0.5rem; }
+.controls label { display: flex; flex-direction: column; font-size: 0.8rem; color: var(--muted); }
+.controls select { padding: 0.3rem; }
+button {
+  padding: 0.45rem 0.9rem;
+  border: 1px solid var(--line);
+  background: #fff;
+  border-radius: 5px;
+  cursor: pointer;
+}
+button:disabled { opacity: 0.5; cursor: not-allowed; }
+button.link { border: none; background: none; color: var(--accent); text-decoration: underline; padding: 0; }
+.row-actions { display: flex; gap: 0.75rem; margin-top: 1rem; }
+
+/* Document list */
+.doc-list { display: flex; flex-direction: column; gap: 0.75rem; }
+.doc-card {
+  display: block;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 0.9rem;
+  text-decoration: none;
+  color: inherit;
+  background: #fff;
+}
+.doc-card:hover { border-color: var(--accent); }
+.doc-card__head { display: flex; justify-content: space-between; align-items: center; gap: 0.75rem; }
+.doc-card__name { font-weight: 600; }
+.doc-card__summary { margin: 0.4rem 0; color: var(--muted); }
+.doc-card__meta { display: flex; flex-wrap: wrap; gap: 0.75rem; font-size: 0.78rem; color: var(--muted); }
+
+/* Urgency badge */
+.urgency-badge {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+/* Field list */
+.field-list { display: flex; flex-direction: column; gap: 0.1rem; margin: 1rem 0; }
+.field-row { display: grid; grid-template-columns: 180px 1fr; gap: 0.5rem; padding: 0.5rem 0; border-bottom: 1px solid var(--line); }
+.field-row dt { color: var(--muted); font-size: 0.85rem; margin: 0; }
+.field-row dd { margin: 0; }
+.field-value--missing { color: var(--muted); font-style: italic; }
+
+/* Upload */
+.dropzone {
+  border: 2px dashed var(--line);
+  border-radius: 8px;
+  padding: 2rem;
+  text-align: center;
+  cursor: pointer;
+  color: var(--muted);
+}
+.dropzone--active { border-color: var(--accent); background: #f0f6fc; }
+.dropzone__hint { font-size: 0.8rem; }
+.selected-file { margin-top: 0.75rem; }
+
+/* Errors */
+.error-message {
+  border: 1px solid #e5534b;
+  background: #fdecea;
+  color: #8b1a10;
+  padding: 0.75rem;
+  border-radius: 6px;
+  margin: 1rem 0;
+}
+.error-message button { margin-top: 0.5rem; }
+
+/* Review form */
+.review-form { border-top: 1px solid var(--line); margin-top: 1.5rem; padding-top: 1rem; }
+.review-form label { display: flex; flex-direction: column; gap: 0.3rem; font-size: 0.85rem; color: var(--muted); }
+.review-form textarea { font: inherit; padding: 0.5rem; }
+.char-count { align-self: flex-end; font-size: 0.75rem; }
+.review-note { background: #f2f2f2; padding: 0.6rem; border-radius: 5px; }
+.doc-detail__meta { color: var(--muted); font-size: 0.85rem; }
