@@ -11,8 +11,8 @@ forwards and attaches the header (SPEC.md §5).
 ```bash
 cd server
 npm install
-cp .env.example .env    # then fill in N8N_BASE_URL, N8N_DOCUMENTS_PATH, N8N_SECRET
-npm run dev             # node --watch, http://localhost:3001
+cp .env.example .env    # then fill in N8N_BASE_URL, N8N_DOCUMENTS_PATH, N8N_PROCESS_PATH, N8N_SECRET
+npm run dev             # node --watch, port from PORT (.env.example: 5055)
 ```
 
 The server exits immediately with a readable message if any required env var
@@ -23,8 +23,8 @@ is missing.
 | Route             | Forwards to                                | Status |
 |-------------------|--------------------------------------------|--------|
 | `GET /api/documents` | `{N8N_BASE_URL}{N8N_DOCUMENTS_PATH}`     | implemented |
+| `POST /api/process` | `{N8N_BASE_URL}{N8N_PROCESS_PATH}`        | implemented (JSON body ≤ 20 MB) |
 | `GET /health`     | —                                          | liveness check |
-| `POST /api/process` | `{N8N_BASE_URL}{N8N_PROCESS_PATH}`        | later milestone |
 | `POST /api/review` | `{N8N_BASE_URL}{N8N_REVIEW_PATH}`          | later milestone |
 
 ## Error shape

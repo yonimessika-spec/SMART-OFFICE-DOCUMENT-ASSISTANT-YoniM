@@ -282,6 +282,33 @@ opened directly).
 
 **Date:** 2026-09-06
 
+---
+
+## Entry 5 — Workflow A: Doc Assistant - Upload Endpoint (Phase 3)
+
+**Date:** 2026-09-08
+
+### What was built (n8n workflow, not client/server code)
+
+New n8n workflow "Doc Assistant - Upload Endpoint" implementing `POST /process-document`:
+
+- **Webhook** (Header Auth, `x-api-key`) → **Validate mimeType** (IF, Boolean
+  expression checking `body.mime_type` against the PDF/DOCX/TXT allow-list,
+  hard reject) → **false branch**: Respond to Webhook - Error (400,
+  `UNSUPPORTED_FILE_TYPE`, CONTRACT §3 shape).
+- **True branch**: Convert to File (Move Base64 String to File,
+  `body.file_base64` → binary `data`) → Google Drive Upload (**Processed
+  Documents** folder directly, not Incoming — avoids double-triggering Part
+  1's Drive watcher) → Merge (combine by position — Google Drive's node
+  drops the incoming binary and returns only its own JSON, so Merge
+  recombines the binary from Convert to File with the Drive upload's
+  metadata) → Execute Workflow, calling the existing sub-workflow "Doc
+  Assistant - Process Document" (added this new caller to its "can be
+  called by" list).
+- **Call node outputs**: Success branch → Check Empty Extraction (IF,
+  `fields.summary` trimmed length === 0) → true: Respond to Webhook - Empty
+  Document (422, `EMPTY_DOCUMENT`); false: Respond to Webhook - Success
+
 ### Prompt
 
 > Two related bugs, same root cause: `document_id` is empty for every real
@@ -322,6 +349,104 @@ opened directly).
   (CONTRACT §5 needs a real Sheet ID; mock + real both 404), so no state
   corruption — but it's the next thing to revisit when Workflow A lands or if
   review is wired against Workflow B sooner.
+
+### Corrections needed:
+
+(to be filled in by hand after testing)
+
+---
+
+## Entry 6 — Wire POST /api/process to Workflow A (mock → real)
+
+**Date:** 2026-09-08
+
+### Prompt
+
+> Read SPEC.md and CONTRACT.md, and PROMPTS.md Entry 5 for the exact
+> request/response shape Workflow A now returns.
+> 1. In `client/src/api/client.js`, implement `processDocument(file, submittedBy)`
+>    for real: read the file → base64 (no data-URL prefix, §1); POST to
+>    `${VITE_SERVER_BASE_URL}/api/process` with
+>    `{ file_name, mime_type, file_base64, submitted_by }` (snake_case, §1);
+>    on 200 return the parsed JSON as-is (§2); on error capture
+>    `error_code` + `message` (§3) and throw an Error the existing
+>    `messageFor` map can handle — don't invent new text; reuse the mapping.
+>    Respect the ~90 s timeout convention from `getDocuments()`.
+> 2. In `server/index.js`, add `POST /api/process`: forward the body to
+>    `${N8N_BASE_URL}${N8N_PROCESS_PATH}` with `x-api-key` server-side, pass
+>    n8n's response/status through as-is on success and error, same
+>    timeout/error-handling as `/api/documents`.
+> 3. `client/.env`: `VITE_USE_MOCK_PROCESS=false`.
+> Don't touch `getDocuments`, `reviewDocument`, or anything under
+> `client/src/screens/` or `client/src/components/` — Upload.jsx already
+> calls `processDocument()` and handles §2/§3. Pure mock-to-real swap, same
+> pattern as Entry 2.
+
+### Clarification given during the task
+
+- **Signature stays `processDocument(payload)`** (asked, Yoni confirmed
+  "keep"). Item 1's `(file, submittedBy)` / "convert to base64 in client.js"
+  wording predates the fact that **`Upload.jsx` already does the base64
+  conversion** (`toBase64` helper) and builds the
+  `{ file_name, mime_type, file_base64, submitted_by }` object before calling
+  `processDocument(payload)` — `mock.js` takes that same object. Refactoring to
+  `(file, submittedBy)` would have meant editing `Upload.jsx` + `mock.js`,
+  which "don't touch screens/components / no UI changes" forbids. So this was a
+  true one-file swap: `client.js` POSTs the object Upload already passes in.
+- **`getDocuments()` has no client-side timeout** — the ~90 s budget lives in
+  the server's `REQUEST_TIMEOUT_MS` (returns 504 if n8n runs long).
+  `processDocument()` matches: no client `AbortController`.
+
+### What changed
+
+- **`server/index.js`** — added `N8N_PROCESS_PATH` to the env destructure and
+  the required-vars check (fail-fast, like `N8N_DOCUMENTS_PATH`). New route
+  `POST /api/process` with `express.json({ limit: '20mb' })` (base64 of a 10 MB
+  file ≈ 13.4 MB, over Express's 100 KB default) → forwards `req.body` to
+  `{N8N_BASE_URL}{N8N_PROCESS_PATH}` with `x-api-key`, passes n8n's status +
+  JSON body through verbatim (success and error), same `AbortController` →
+  504 / 502 handling as `/api/documents`. Updated the header comment + the
+  startup log lines.
+- **`client/src/api/client.js`** — `processDocument(payload)` implemented:
+  `fetch` POST `${VITE_SERVER_BASE_URL}/api/process`, `Content-Type:
+  application/json`, `body: JSON.stringify(payload)`. On `!res.ok` **or**
+  `body.status === 'error'` → throw `Error(body.message || …)` with
+  `err.status` and `err.code = body.error_code` (feeds `messageFor`'s
+  `ERROR_MESSAGES` map — no invented text). On success → return the §2 body
+  untouched (guards against an empty/unreadable body). Structure mirrors
+  `getDocuments()`.
+- **`client/.env`** — `VITE_USE_MOCK_PROCESS=false` (documents already false;
+  review still true).
+
+### Not touched
+
+- `getDocuments`, `reviewDocument`, `client/src/api/index.js`,
+  `client/src/api/mock.js`, everything under `client/src/screens/` and
+  `client/src/components/`, and **`server/.env`** (Yoni's real file).
+
+### Verification done
+
+- `client` `npm run build` passes.
+- Server (`node --env-file=.env.test index.js`, fake n8n stub on :4999):
+  - valid txt → n8n 200 → proxy 200, CONTRACT §2 body verbatim;
+  - `empty-*` filename → n8n 422 `EMPTY_DOCUMENT` → proxy 422, §3 body;
+  - bad mime → n8n 400 `UNSUPPORTED_FILE_TYPE` → proxy 400, §3 body;
+  - `x-api-key` attached server-side (seen in the stub's log).
+- Browser, `VITE_USE_MOCK_PROCESS=false`, Upload.jsx unchanged:
+  - valid `.txt` → F2 processing → **F3 result view**, all 7 fields, badge,
+    `notification_sent` message, `submitted_by=app-user` echoed in the summary;
+  - `empty-scan-doc.pdf` → **F7 error**: "No readable text — try a different
+    file." (the exact `ERROR_MESSAGES['EMPTY_DOCUMENT']` string, reused — not
+    invented), "Try again" shown, file kept in the form;
+  - Dashboard (`getDocuments`) still renders — no regression.
+
+### Action required on Yoni's side
+
+- `server/.env` must contain **`N8N_PROCESS_PATH`** (it's in `.env.example` as
+  `/process-document`). The server now lists it as a required var, so it will
+  `exit(1)` on start until it's set. I did not open `server/.env`.
+- Restart the `server/` process to pick up the new route; restart the
+  `client/` dev server to pick up `VITE_USE_MOCK_PROCESS=false`.
 
 ### Corrections needed:
 

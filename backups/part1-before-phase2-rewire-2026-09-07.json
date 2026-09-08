@@ -1,0 +1,855 @@
+{
+  "name": "Document Assistant",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "triggerOn": "specificFolder",
+        "folderToWatch": {
+          "__rl": true,
+          "value": "1D35DXJDHsbjsSjDN1jvrQmO06GkGybH2",
+          "mode": "id"
+        },
+        "event": "fileCreated",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDriveTrigger",
+      "typeVersion": 1,
+      "position": [
+        -496,
+        64
+      ],
+      "id": "819418f4-92e2-47db-82f9-c0ca25fb5823",
+      "name": "Google Drive Trigger",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "fKrPNkvkuCF6TO7c",
+          "name": "Google Drive - Yonim"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "download",
+        "fileId": {
+          "__rl": true,
+          "value": "={{ $json.id }}",
+          "mode": "id"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        -272,
+        64
+      ],
+      "id": "e29afbda-3e28-4360-9033-85af4bc56fa9",
+      "name": "Download file",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "fKrPNkvkuCF6TO7c",
+          "name": "Google Drive - Yonim"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.mimeType }}",
+                    "rightValue": "application/pdf",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "a6b7a5e2-649e-46aa-b8e3-169826302ad5"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "PDF"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "fd5f3df7-083c-4a61-8ee3-f61ccc85dd83",
+                    "leftValue": "={{ $json.mimeType }}",
+                    "rightValue": "text/plain",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "TXT"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        -48,
+        64
+      ],
+      "id": "b1617ea6-6922-47ce-804f-e42aad97fd44",
+      "name": "Doc Type Identifier"
+    },
+    {
+      "parameters": {
+        "operation": "pdf",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.1,
+      "position": [
+        176,
+        -32
+      ],
+      "id": "88785296-823b-4d2d-b90e-a006473519d7",
+      "name": "Extract PDF File"
+    },
+    {
+      "parameters": {
+        "operation": "text",
+        "destinationKey": "text",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.1,
+      "position": [
+        176,
+        160
+      ],
+      "id": "add91f92-42c6-4f84-a4b1-5dbc4fd32ece",
+      "name": "Extract TXT File"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        400,
+        64
+      ],
+      "id": "7f922a2e-f4d2-4f9c-9783-c4f956f91063",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "gpt-4o-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        704,
+        304
+      ],
+      "id": "35e3acfe-0974-42e8-a2c8-2ada83396d40",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "t6TSyzg5HV85kAxp",
+          "name": "n8nTestModule"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "text": "=Today's date: {{ $now.toFormat('yyyy-MM-dd') }}\n\nDocument content:\n{{ $json.text }}",
+        "attributes": {
+          "attributes": [
+            {
+              "name": "document_type",
+              "description": "Choose exactly one: invoice, request, report, complaint, contract, quote, or other.",
+              "required": true
+            },
+            {
+              "name": "sender_or_company",
+              "description": "Name of the person or organization who sent the document. Use \"Not found\" if absent.",
+              "required": true
+            },
+            {
+              "name": "summary",
+              "description": "Explain the document in no more than three short sentences.",
+              "required": true
+            },
+            {
+              "name": "requested_action",
+              "description": "What the company should do next in response to this document. Use \"No action found\" if the document requires no action.",
+              "required": true
+            },
+            {
+              "name": "deadline",
+              "description": "Any deadline mentioned in the document, returned exactly as written (e.g., \"August 5, 2026\" or \"within 7 days\"). Use \"Not found\" if absent",
+              "required": true
+            },
+            {
+              "name": "urgency",
+              "description": "Exactly one of: Low, Medium, High.",
+              "required": true
+            },
+            {
+              "name": "department",
+              "description": "Which department should handle this. Exactly one of: Sales, Finance, Support, HR, Management, General.",
+              "required": true
+            },
+            {
+              "name": "deadline_iso",
+              "description": "The deadline converted to ISO 8601 date format (YYYY-MM-DD). If the deadline is a specific date like \"August 5, 2026\" convert to \"2026-08-05\". If it's a relative expression like \"within 7 days\" or \"valid for 7 days\", calculate the actual date based on today. Return an empty string if no deadline."
+            }
+          ]
+        },
+        "options": {
+          "systemPromptTemplate": "You are an office assistant that reads business documents (invoices, customer requests, complaints, supplier quotes, contracts, and internal reports) and extracts structured information for logging.\n\nRules:\n- Extract only information that appears in the document. Never invent missing details.\n- When information is missing, use \"Not found\" (or \"No action found\" for the requested_action field).\n- Mark urgency as High only when the document contains an immediate deadline (within 3 days), payment risk, legal or safety risk, or an explicit urgent request.\n- Mark urgency as Medium when there is a deadline but it is not immediate, or when a response is clearly expected.\n- Mark urgency as Low when the document is informational and no action is required.\n- Return the deadline exactly as written in the document (do not reformat dates)."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.informationExtractor",
+      "typeVersion": 1.2,
+      "position": [
+        624,
+        64
+      ],
+      "id": "f13b9292-abce-4378-bb9d-0e17fbd42573",
+      "name": "Information Extractor"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1MscivqX0yer39GkAABIyGIUSf3LhPNGFumbbDg84I6M",
+          "mode": "list",
+          "cachedResultName": "Document - Processing Log",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1MscivqX0yer39GkAABIyGIUSf3LhPNGFumbbDg84I6M/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1MscivqX0yer39GkAABIyGIUSf3LhPNGFumbbDg84I6M/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Deadline": "={{ $json.output.deadline }}",
+            "Requested Action": "={{ $json.output.requested_action }}",
+            "Summary": "={{ $json.output.summary }}",
+            "File Link": "={{ $('Google Drive Trigger').item.json.webViewLink }}",
+            "Department": "={{ $json.output.department }}",
+            "Received At": "={{ $now.format('dd/MM/yyyy HH:mm') }}",
+            "Sender or Company": "={{ $json.output.sender_or_company }}",
+            "File Name": "={{ $('Google Drive Trigger').item.json.name }}",
+            "Status": "Processed",
+            "Document Type": "={{ $json.output.document_type }}",
+            "Urgency": "={{ $json.output.urgency }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Received At",
+              "displayName": "Received At",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "File Name",
+              "displayName": "File Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "File Link",
+              "displayName": "File Link",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Document Type",
+              "displayName": "Document Type",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Sender or Company",
+              "displayName": "Sender or Company",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Summary",
+              "displayName": "Summary",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Requested Action",
+              "displayName": "Requested Action",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Deadline",
+              "displayName": "Deadline",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Urgency",
+              "displayName": "Urgency",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Department",
+              "displayName": "Department",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        976,
+        -224
+      ],
+      "id": "5b84fccb-38b7-4dc6-9b35-dbbad737b435",
+      "name": "Append row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "41mv9c6VXbkznYJo",
+          "name": "MainMail"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "43d6867d-13fc-47c4-9a1e-b3ec93bce6f3",
+              "leftValue": "={{ $('Information Extractor').item.json.output.urgency }}",
+              "rightValue": "High",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1200,
+        -224
+      ],
+      "id": "08a0cba5-ffef-4bb4-9cb2-77cfbb32e10b",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "sendTo": "yoni.messika@gmail.com",
+        "subject": "=URGENT: {{ $('Information Extractor').item.json.output.document_type }} from {{ $('Information Extractor').item.json.output.sender_or_company }}",
+        "message": "=<p>🚨 <strong>URGENT DOCUMENT PROCESSED</strong></p>\n\n<p>The following document requires immediate attention:</p>\n\n<p>\n<strong>File Name:</strong> {{ $('Google Drive Trigger').item.json.name }}<br>\n<strong>Sender / Company:</strong> {{ $('Information Extractor').item.json.output.sender_or_company }}<br>\n<strong>Document Type:</strong> {{ $('Information Extractor').item.json.output.document_type }}\n</p>\n\n<p><strong>Summary:</strong> {{ $('Information Extractor').item.json.output.summary }}</p>\n\n<p>\n<strong>Requested Action:</strong> {{ $('Information Extractor').item.json.output.requested_action }}<br>\n<strong>Deadline:</strong> {{ $('Information Extractor').item.json.output.deadline }}<br>\n<strong>Urgency:</strong> {{ $('Information Extractor').item.json.output.urgency }}<br>\n<strong>Department:</strong> {{ $('Information Extractor').item.json.output.department }}\n</p>\n\n<p><strong>Open document:</strong> <a href=\"{{ $('Google Drive Trigger').item.json.webViewLink }}\">View in Google Drive</a></p>\n\n<hr>\n<p style=\"color:#888;font-size:12px;\">Automated notification from the Smart Document Assistant.</p>\n\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1424,
+        -128
+      ],
+      "id": "8613898d-2b3b-439d-9553-db1c24902382",
+      "name": "Urgent Gmail Alert",
+      "webhookId": "6f83ef39-ca34-4e00-80b3-036a5638260e",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "AziJEjPk4AnwP72M",
+          "name": "Gmail YoniXFeed"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "yoni.messika@gmail.com",
+        "subject": "=NOTIFICATION: {{ $('Information Extractor').item.json.output.document_type }} from {{ $('Information Extractor').item.json.output.sender_or_company }}",
+        "message": "=<p><strong>📄 DOCUMENT PROCESSED</strong></p>\n\n<p>A new document has been processed and logged. Details below:</p>\n\n<p>\n<strong>File Name:</strong> {{ $('Google Drive Trigger').item.json.name }}<br>\n<strong>Sender / Company:</strong> {{ $('Information Extractor').item.json.output.sender_or_company }}<br>\n<strong>Document Type:</strong> {{ $('Information Extractor').item.json.output.document_type }}\n</p>\n\n<p><strong>Summary:</strong> {{ $('Information Extractor').item.json.output.summary }}</p>\n\n<p>\n<strong>Requested Action:</strong> {{ $('Information Extractor').item.json.output.requested_action }}<br>\n<strong>Deadline:</strong> {{ $('Information Extractor').item.json.output.deadline }}<br>\n<strong>Urgency:</strong> {{ $('Information Extractor').item.json.output.urgency }}<br>\n<strong>Department:</strong> {{ $('Information Extractor').item.json.output.department }}\n</p>\n\n<p><strong>Open document:</strong> <a href=\"{{ $('Google Drive Trigger').item.json.webViewLink }}\">View in Google Drive</a></p>\n\n<hr>\n<p style=\"color:#888;font-size:12px;\">Automated notification from the Document Assistant. No urgent action required.</p>",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1472,
+        64
+      ],
+      "id": "626a5832-73b6-4205-b9e3-c0704abd2a82",
+      "name": "Regular Gmail Notification",
+      "webhookId": "8804421b-5918-49d4-a3dd-86086391a8cf",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "AziJEjPk4AnwP72M",
+          "name": "Gmail YoniXFeed"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        1648,
+        -32
+      ],
+      "id": "d9d98aee-c9da-4c7c-8891-0ef1df52b436",
+      "name": "Merge1"
+    },
+    {
+      "parameters": {
+        "operation": "move",
+        "fileId": {
+          "__rl": true,
+          "value": "={{ $('Google Drive Trigger').item.json.id }}",
+          "mode": "id"
+        },
+        "driveId": {
+          "__rl": true,
+          "value": "My Drive",
+          "mode": "list",
+          "cachedResultName": "My Drive",
+          "cachedResultUrl": "https://drive.google.com/drive/my-drive"
+        },
+        "folderId": {
+          "__rl": true,
+          "value": "1my3i46QOAVwFfDp4mbsMGcCdZVkXNkwE",
+          "mode": "id"
+        }
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        1872,
+        -32
+      ],
+      "id": "2d74380e-6db3-4486-922c-a945890a3aa8",
+      "name": "Move file",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "fKrPNkvkuCF6TO7c",
+          "name": "Google Drive - Yonim"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "775134528",
+        "text": "=🚨 <b>URGENT DOCUMENT</b>\n\n<b>From:</b> {{ $('Information Extractor').item.json.output.sender_or_company }}\n<b>Type:</b> {{ $('Information Extractor').item.json.output.document_type }}\n<b>Deadline:</b> {{ $('Information Extractor').item.json.output.deadline }}\n<b>Department:</b> {{ $('Information Extractor').item.json.output.department }}\n\n<b>Action:</b> {{ $('Information Extractor').item.json.output.requested_action }}\n\n<a href=\"{{ $('Google Drive Trigger').item.json.webViewLink }}\">📎 Open document</a>",
+        "additionalFields": {
+          "parse_mode": "HTML"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1440,
+        -368
+      ],
+      "id": "8065cc4a-8e9a-46b9-b013-ca290af1b78e",
+      "name": "Urgent Telegram Notification",
+      "webhookId": "a519cc8e-dc5c-4e83-9d74-dd068e61ec1d",
+      "credentials": {
+        "telegramApi": {
+          "id": "aB5OUO3nAcOQl5MC",
+          "name": "Telegram SmartDocAssistant"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1200,
+        160
+      ],
+      "id": "ed2afdfa-bb64-497a-8a08-f01b4ec51f4b",
+      "name": "No Operation, do nothing"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "59085338-8152-4474-8a6c-7a788b22a914",
+              "leftValue": "={{ $json.output.deadline }}",
+              "rightValue": "Not found",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            },
+            {
+              "id": "02bc3818-55f5-497b-a5fc-ab8ed1b003d0",
+              "leftValue": "={{ $json.output.deadline }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        976,
+        160
+      ],
+      "id": "a90fe655-9d61-4ee6-b364-7d768485cff7",
+      "name": "If Deadline - Write to Calendar"
+    },
+    {
+      "parameters": {
+        "calendar": {
+          "__rl": true,
+          "value": "9feec4ea27a3821db93ca1b08edb32209889c3c3a68a37af5a689e43bcb496bf@group.calendar.google.com",
+          "mode": "list",
+          "cachedResultName": "Doc Assistant Calendar"
+        },
+        "start": "={{ $('Information Extractor').item.json.output.deadline_iso }}T09:00:00",
+        "end": "={{ $('Information Extractor').item.json.output.deadline_iso }}T09:30:00",
+        "additionalFields": {
+          "description": "={{ $('Information Extractor').item.json.output.summary }}\n    \n    Action: {{ $('Information Extractor').item.json.output.requested_action }}\n    \n    Document: {{ $('Google Drive Trigger').item.json.webViewLink }}",
+          "summary": "=Deadline: {{ $('Information Extractor').item.json.output.document_type }} — {{ $('Information Extractor').item.json.output.sender_or_company }}"
+        }
+      },
+      "type": "n8n-nodes-base.googleCalendar",
+      "typeVersion": 1.3,
+      "position": [
+        1200,
+        -32
+      ],
+      "id": "4a641ca9-0863-4efb-9f79-dc9437eb0a72",
+      "name": "Create Deadline Urgent Event ",
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "25W04FJ7dy4AxW3m",
+          "name": "Google Calendar OAuth2 API"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Google Drive Trigger": {
+      "main": [
+        [
+          {
+            "node": "Download file",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download file": {
+      "main": [
+        [
+          {
+            "node": "Doc Type Identifier",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Doc Type Identifier": {
+      "main": [
+        [
+          {
+            "node": "Extract PDF File",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Extract TXT File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract PDF File": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract TXT File": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Information Extractor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Information Extractor",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Information Extractor": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "If Deadline - Write to Calendar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append row in sheet": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Urgent Gmail Alert",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Urgent Telegram Notification",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Regular Gmail Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Urgent Gmail Alert": {
+      "main": [
+        [
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Regular Gmail Notification": {
+      "main": [
+        [
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge1": {
+      "main": [
+        [
+          {
+            "node": "Move file",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If Deadline - Write to Calendar": {
+      "main": [
+        [
+          {
+            "node": "Create Deadline Urgent Event ",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No Operation, do nothing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "dc4d0109-d055-4b1a-9181-8bbf4d883139",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "558cd4414acf9ac99d068f1c2801df0500a48eb2c978e24e1653db67a9150841"
+  },
+  "nodeGroups": [],
+  "id": "Gs0nXPxFm5VPFLns",
+  "tags": []
+}

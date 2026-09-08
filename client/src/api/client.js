@@ -6,7 +6,7 @@
 //
 // Wire these up ONE AT A TIME, in this order (SPEC.md §6):
 //   1. getDocuments   -> GET  /api/documents   [IMPLEMENTED]
-//   2. processDocument -> POST /api/process    [not yet — throwing stub below]
+//   2. processDocument -> POST /api/process    [IMPLEMENTED]
 //   3. reviewDocument  -> POST /api/review     [not yet — throwing stub below]
 //
 // Request/response shapes: CONTRACT.md §1–§6.
@@ -63,11 +63,58 @@ export async function getDocuments() {
   return [...body].reverse()
 }
 
-// POST /api/process  ->  CONTRACT.md §1 (request) / §2 (success) / §3 (error)
-// payload: { file_name, mime_type, file_base64, submitted_by? }
+// POST /api/process  ->  CONTRACT.md §1 (request) / §2 (success 200) / §3 (error)
+//
+// `payload` is the object Upload.jsx already builds and passes in:
+//   { file_name, mime_type, file_base64, submitted_by }
+// Field names are snake_case to match CONTRACT.md §1 exactly (note: mime_type).
+// file_base64 has no data-URL prefix — Upload.jsx strips it.
+//
+// Mirrors getDocuments(): no client-side timeout of its own — the ~90 s budget
+// lives in the server's REQUEST_TIMEOUT_MS (it returns 504 if n8n runs long).
 export async function processDocument(payload) {
-  // TODO(step: connect /api/process) — see SPEC.md §6.
-  throw new Error(NOT_IMPLEMENTED)
+  if (!SERVER_BASE_URL) {
+    throw new Error(
+      'VITE_SERVER_BASE_URL is not set. Add it to client/.env (e.g. http://localhost:5055).',
+    )
+  }
+
+  let res
+  try {
+    res = await fetch(`${SERVER_BASE_URL}/api/process`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify(payload),
+    })
+  } catch (cause) {
+    // fetch only rejects on network-level failure (server down, DNS, CORS).
+    throw new Error(`Could not reach the server at ${SERVER_BASE_URL}. Is it running?`, { cause })
+  }
+
+  const body = await res.json().catch(() => null)
+
+  // CONTRACT.md §3 error envelope: { status: "error", error_code, message }.
+  // Workflow A returns it with an HTTP 4xx (400 UNSUPPORTED_FILE_TYPE /
+  // 422 EMPTY_DOCUMENT); also guard on body.status in case one arrives with 200.
+  if (!res.ok || body?.status === 'error') {
+    const err = new Error(
+      body?.message || `The server returned ${res.status} for /api/process.`,
+    )
+    err.status = res.status
+    // error_code drives ErrorMessage's messageFor() -> ERROR_MESSAGES map;
+    // no new user-facing error text is invented here.
+    if (body?.error_code) err.code = body.error_code
+    throw err
+  }
+
+  if (!body) {
+    const err = new Error('The server returned an empty response for /api/process.')
+    err.status = res.status
+    throw err
+  }
+
+  // CONTRACT.md §2 success shape — handed back to Upload.jsx untouched.
+  return body
 }
 
 // POST /api/review  ->  CONTRACT.md §5 (request) / §6 (response, 404 if no match)
