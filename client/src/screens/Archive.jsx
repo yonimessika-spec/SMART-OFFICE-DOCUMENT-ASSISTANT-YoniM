@@ -12,17 +12,16 @@ import SearchField from '../components/SearchField.jsx'
 import ArchiveCard from '../components/ArchiveCard.jsx'
 import ErrorMessage from '../components/ErrorMessage.jsx'
 
-// Archive — documents that have been reviewed (or flagged for review).
-// Same free-text search as the Dashboard (shared: SearchField + matchesQuery);
-// each row can be reopened, which sends it back to the Dashboard.
-const ARCHIVED = new Set(['Reviewed', 'Needs Review'])
-
+// Archive — handled/done documents only (status "Reviewed"). "Needs Review"
+// documents still need action, so they stay on the Dashboard, not here. Same
+// free-text search as the Dashboard (shared: SearchField + matchesQuery); each
+// row can be reopened, which sends it back to the Dashboard.
 export default function Archive() {
   const { documents, loading, error, refresh } = useDocuments()
   const [query, setQuery] = useState('')
 
   const archived = useMemo(
-    () => documents.filter((d) => ARCHIVED.has(d.status)),
+    () => documents.filter((d) => d.status === 'Reviewed'),
     [documents],
   )
   const visible = useMemo(

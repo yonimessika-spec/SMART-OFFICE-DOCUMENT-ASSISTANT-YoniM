@@ -1,11 +1,14 @@
 import { Link } from 'react-router-dom'
 import { Badge } from '@/components/ui/badge'
 import UrgencyBadge from './UrgencyBadge.jsx'
+import StatusBadge from './StatusBadge.jsx'
 import FieldValue from './FieldValue.jsx'
 import ReopenDialog from './ReopenDialog.jsx'
 
-// One row in the Archive list. Unlike DocumentCard the whole card isn't a link
-// (it contains the Reopen button) — the file name links to the detail view.
+// One row in the Archive list. Every Archive document is "Reviewed" (handled),
+// so the card stays neutral — the amber "Needs Review" treatment moved to the
+// Dashboard's DocumentCard. Unlike DocumentCard the whole card isn't a link (it
+// contains the Reopen button) — the file name links to the detail view.
 export default function ArchiveCard({ doc }) {
   return (
     <div className="rounded-xl border border-border bg-card p-5">
@@ -16,7 +19,10 @@ export default function ArchiveCard({ doc }) {
         >
           {doc.file_name}
         </Link>
-        <UrgencyBadge value={doc.urgency} />
+        <div className="flex shrink-0 flex-col items-end gap-1.5">
+          <StatusBadge value={doc.status} />
+          <UrgencyBadge value={doc.urgency} />
+        </div>
       </div>
 
       <p className="mt-1.5 line-clamp-2 text-sm text-muted-foreground">
@@ -37,7 +43,6 @@ export default function ArchiveCard({ doc }) {
         <Badge variant="outline" className="font-normal">
           {doc.department}
         </Badge>
-        <span>{doc.status}</span>
         {doc.reviewed_by ? <span>Reviewed by {doc.reviewed_by}</span> : null}
         {/* received_at is an opaque display string from n8n — show it as-is. */}
         <span className="tabular-nums">{doc.received_at}</span>

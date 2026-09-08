@@ -23,6 +23,18 @@ export const URGENCY_STYLES = {
 }
 export const URGENCY_FALLBACK = { bg: '#eee', fg: '#333', border: '#999' }
 
+// Review-status pill colours for StatusBadge (Dashboard + Archive rows).
+// Same shape as URGENCY_STYLES. "Needs Review" reuses the warm amber already
+// defined for Medium urgency — same palette, no new colour — so it reads as
+// needing attention. Everything else ("Reviewed", "Processed", …) falls back to
+// the neutral warm-stone token values from index.css
+// (--muted / --muted-foreground / --border).
+export const REVIEW_STATUS_STYLES = {
+  'Needs Review': URGENCY_STYLES.Medium,
+  Reviewed: { bg: '#f3efe9', fg: '#6b625a', border: '#e7e1d9' },
+}
+export const REVIEW_STATUS_FALLBACK = { bg: '#f3efe9', fg: '#6b625a', border: '#e7e1d9' }
+
 // The seven extracted fields, in display order, with human labels (CONTRACT.md §2).
 export const FIELD_LABELS = [
   ['document_type', 'Document type'],

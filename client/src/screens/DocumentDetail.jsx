@@ -28,7 +28,7 @@ import ErrorMessage from '../components/ErrorMessage.jsx'
 
 // F6 Detail view + review.
 // - shows every field for one document
-// - "Mark as reviewed" with an optional note (<=200 chars)
+// - "Mark as reviewed" / "Flag as needs review", with an optional note (<=200 chars)
 // - posts to /api/review; on success { status: "updated" } updates local state
 // - 404 (no matching row) surfaces as a plain sentence (F7)
 
@@ -48,6 +48,7 @@ export default function DocumentDetail() {
   const [note, setNote] = useState('')
   const [phase, setPhase] = useState('idle') // idle | saving | done | error
   const [error, setError] = useState(null)
+  const [savedAs, setSavedAs] = useState(null) // 'Reviewed' | 'Needs Review' — which action last succeeded
 
   if (loading) return <p className="text-muted-foreground">Loading…</p>
   if (!doc) {
@@ -68,20 +69,24 @@ export default function DocumentDetail() {
     )
   }
 
-  async function onSubmit(e) {
-    e.preventDefault()
+  // Shared review-submission path. Both action buttons call this — only the
+  // status differs. The early return + the buttons' `disabled` both guard
+  // against a double-submit while a request is in flight.
+  async function submitReview(status) {
+    if (phase === 'saving') return
     setPhase('saving')
     setError(null)
     try {
       const payload = {
         document_id: doc.document_id,
-        status: 'Reviewed',
+        status,
         reviewed_by: 'app-user',
         review_note: note.slice(0, NOTE_MAX),
       }
       const res = await reviewDocument(payload)
       if (res.status === 'updated') {
         applyReview(doc.document_id, payload)
+        setSavedAs(status)
         setPhase('done')
       } else {
         setError(new Error('Unexpected response'))
@@ -91,6 +96,11 @@ export default function DocumentDetail() {
       setError(err)
       setPhase('error')
     }
+  }
+
+  function onSubmit(e) {
+    e.preventDefault()
+    submitReview('Reviewed')
   }
 
   const alreadyReviewed = doc.status === 'Reviewed'
@@ -174,8 +184,9 @@ export default function DocumentDetail() {
               {phase === 'done' && (
                 <p className="flex items-center gap-2 text-sm font-medium">
                   <CircleCheck aria-hidden="true" className="size-4 text-primary" />
-                  Saved. This document is now marked as Reviewed. This document is
-                  now available to view on Archive.
+                  {savedAs === 'Needs Review'
+                    ? 'Saved. This document is now flagged as Needs Review.'
+                    : 'Saved. This document is now marked as Reviewed. This document is now available to view on Archive.'}
                 </p>
               )}
 
@@ -183,6 +194,15 @@ export default function DocumentDetail() {
                 <Button type="submit" disabled={phase === 'saving'}>
                   {phase === 'saving' && <Spinner />}
                   {phase === 'saving' ? 'Saving…' : 'Mark as reviewed'}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => submitReview('Needs Review')}
+                  disabled={phase === 'saving'}
+                >
+                  {phase === 'saving' && <Spinner />}
+                  {phase === 'saving' ? 'Saving…' : 'Flag as needs review'}
                 </Button>
               </Field>
             </FieldGroup>

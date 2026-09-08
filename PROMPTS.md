@@ -588,3 +588,256 @@ New n8n workflow "Doc Assistant - Upload Endpoint" implementing `POST /process-d
 ### Corrections needed:
 
 (to be filled in by hand after testing)
+
+---
+
+## Entry 8 — DocumentDetail: "Flag as needs review" + double-submit guard
+
+**Date:** 2026-09-08
+
+### Prompt
+
+> In DocumentDetail.jsx's Review section:
+> 1. Add a second action button, "Flag as needs review", next to
+>    "Mark as reviewed". Same payload shape as the existing button except
+>    `status: "Needs Review"`. Reuse the existing submit handler — parameterize
+>    the status, don't duplicate the code path. Success message for this
+>    action: "Saved. This document is now flagged as Needs Review. This
+>    document is now available to view on Archive." Keep the existing
+>    "Mark as reviewed" button and its message exactly as they are now. Both
+>    buttons share the same optional Note field.
+> 2. Fix: both buttons disable + show a pending/saving state for the duration
+>    of the request, re-enabling only on error — preventing a double-submit
+>    from repeated clicks while the request is in flight. Same pattern as
+>    Upload.jsx's F2 processing state.
+>
+> Don't touch the review endpoint, client.js, or the Archive/Reopen flow —
+> DocumentDetail-only: one new button + a shared disable-while-pending guard.
+>
+> (follow-up) Add an Entry 8 to PROMPTS.md.
+
+### What changed — `client/src/screens/DocumentDetail.jsx` only
+
+- `onSubmit(e)` split into `submitReview(status)` (the shared path) + a thin
+  `onSubmit` that calls `submitReview('Reviewed')` (keeps the `<form onSubmit>`
+  / the "Mark as reviewed" `type="submit"` button working exactly as before).
+  `submitReview` opens with `if (phase === 'saving') return` — the in-flight
+  guard.
+- New state `savedAs` ('Reviewed' | 'Needs Review'), set on success, chooses
+  which success sentence renders. The "Reviewed" sentence is byte-for-byte the
+  existing one; the "Needs Review" sentence is the new copy from the prompt.
+- New button **"Flag as needs review"** in the same `<Field orientation=
+  "horizontal">`: `type="button"`, `variant="outline"` (secondary to the plum
+  "Mark as reviewed"), `onClick={() => submitReview('Needs Review')}`. Payload
+  is identical to the reviewed path except `status`.
+- Both buttons now carry `disabled={phase === 'saving'}` and the
+  `{phase === 'saving' ? 'Saving…' : <label>}` + `<Spinner/>` treatment (the
+  "Mark as reviewed" button already had this; the pattern is now on both).
+  `phase === 'error'` leaves `phase !== 'saving'`, so both re-enable on error.
+- File header comment updated to mention both actions.
+
+### Not touched
+
+- `client/src/api/*` (incl. `client.js` / `reviewDocument`), `store.jsx`,
+  the Archive / Reopen flow, the `/api/review` route, the existing
+  "already marked as Reviewed" `CardDescription`, and **`server/.env`**.
+  `git status` shows exactly one modified file: `DocumentDetail.jsx`.
+
+### Verification done
+
+- `client` `npm run build` passes.
+- Browser (isolated stub on a spare port via `client/.env.local` +
+  `server/.env.test` PORT=5056, so the real backend on :5055 was never hit):
+  - Processed doc → **"Flag as needs review"** → status becomes "Needs Review",
+    message reads "Saved. This document is now flagged as Needs Review. This
+    document is now available to view on Archive."
+  - **"Mark as reviewed"** → status "Reviewed", message unchanged
+    ("…marked as Reviewed. This document is now available to view on Archive.").
+  - Mid-request (1.5 s stub latency): **both buttons `disabled`, both show
+    "Saving…"**.
+  - Stub down → request fails → **both buttons re-enabled**, `<ErrorMessage>` +
+    "Try again" shown (existing F7 component).
+  - Button attrs confirmed: "Mark as reviewed" = `type="submit"` /
+    `variant="default"`; "Flag as needs review" = `type="button"` /
+    `variant="outline"`.
+
+### Corrections needed:
+
+(to be filled in by hand after testing)
+
+---
+
+## Entry 9 — Archive: "Needs Review" visual treatment + sort
+
+**Date:** 2026-09-08
+
+Follow-on to Entry 8 (kept separate — Entry 8 is the DocumentDetail button;
+this is Archive-display-only, different files).
+
+### Prompt
+
+> On the Archive page, give "Needs Review" documents a treatment distinct from
+> "Reviewed" so they stand out as needing action:
+> - Add a status badge/pill per Archive card ("Needs Review" / "Reviewed"),
+>   reusing the UrgencyBadge pattern rather than inventing a new one.
+> - "Needs Review" visually distinguished (amber/warning-toned border or badge
+>   colour) within the existing warm palette — no new colour; "Reviewed" stays
+>   neutral/muted.
+> - Sort Archive so "Needs Review" appears before "Reviewed" by default, within
+>   the existing search/filter behaviour.
+>
+> Archive-display-only. Don't touch review submission, the endpoint, or
+> Dashboard.
+
+### What changed
+
+- **`client/src/constants.js`** — added `REVIEW_STATUS_STYLES` (+ a fallback),
+  same `{ bg, fg, border }` shape as `URGENCY_STYLES`. `'Needs Review'` is set
+  to `URGENCY_STYLES.Medium` (a direct reference — provably the same warm amber
+  already in the palette, no new colour); `'Reviewed'` uses the neutral
+  warm-stone token values (`#f3efe9` / `#6b625a` / `#e7e1d9` = `--muted` /
+  `--muted-foreground` / `--border` from index.css).
+- **`client/src/components/StatusBadge.jsx`** (new) — a structural clone of
+  `UrgencyBadge`: same pill classes, leading dot, inline colour from the map,
+  label always shown (the raw status string, no prefix).
+- **`client/src/components/ArchiveCard.jsx`** —
+  - `StatusBadge` stacked above `UrgencyBadge` in a right-aligned column in the
+    card's top row; the now-redundant plain `<span>{doc.status}</span>` removed
+    from the meta row.
+  - `"Needs Review"` cards: `borderColor` + `backgroundColor` set inline from
+    `REVIEW_STATUS_STYLES` (amber border `#e0a13c`, pale amber fill `#fff4e5`).
+    `"Reviewed"` (and anything else): unchanged `border-border bg-card`.
+- **`client/src/screens/Archive.jsx`** — after the existing `matchesQuery`
+  filter, `visible` is stable-sorted by `STATUS_RANK` (`Needs Review` 0,
+  `Reviewed` 1, else 9). Stable sort keeps the newest-first order within each
+  group; the search still filters first.
+
+### Not touched
+
+- Review submission / `submitReview` / DocumentDetail, `client.js`,
+  `/api/review`, `store.jsx`, Dashboard, `UrgencyBadge`, and **`server/.env`**.
+  `URGENCY_STYLES` itself is unchanged (only referenced).
+
+### Verification done
+
+- `client` `npm run build` passes.
+- Browser (isolated stub, GET-only — no writes to the real backend): Archive
+  with 2 `Needs Review` + 1 `Reviewed` row →
+  - the two `Needs Review` rows render first, then the `Reviewed` row (sort);
+  - `Needs Review` cards: computed `border-color rgb(224,161,60)` /
+    `background rgb(255,244,229)`; `Reviewed` card: `rgb(231,225,217)` border /
+    white — confirmed via `getComputedStyle`;
+  - `StatusBadge` shows "Needs Review" (amber) / "Reviewed" (muted);
+  - search ("report") still filters to 1 row and the count reads "1 of 3";
+  - no React console warnings.
+
+### Corrections needed:
+
+(to be filled in by hand after testing)
+
+---
+
+## Entry 10 — Design correction: "Needs Review" belongs on Dashboard, not Archive
+
+**Date:** 2026-09-08
+
+### Why (the design fix)
+
+Entry 8 added a "Flag as needs review" action; Entry 9 gave "Needs Review"
+rows an amber treatment **on the Archive page**. That was the wrong home for
+them. "Needs Review" means *a person looked at the document and it still needs
+action* — that's live work, arguably more urgent than "Processed" (which just
+hasn't been looked at yet). Burying it in the Archive (handled/done items) hides
+it. So "Needs Review" moves to the Dashboard, and the amber treatment moves with
+it. Archive becomes "Reviewed" only.
+
+### Prompt
+
+> Routing fix, no new endpoint:
+> 1. Dashboard.jsx — default/active status filter shows "Processed" OR
+>    "Needs Review" (not "Processed" alone); the dropdown still lets a user
+>    narrow to one of the two.
+> 2. Archive.jsx — filter to ONLY `status === "Reviewed"` (drop "Needs Review").
+> 3. On Dashboard, give "Needs Review" docs the same visual distinction Entry 9
+>    built — reuse `StatusBadge` + `REVIEW_STATUS_STYLES` (don't duplicate the
+>    styling logic). Sort "Needs Review" before "Processed", same stable sort.
+> 4. Remove the now-dead Needs-Review amber styling from `ArchiveCard.jsx`
+>    (StatusBadge / REVIEW_STATUS_STYLES themselves stay — Dashboard uses them).
+> 5. DocumentDetail.jsx — the "Flag as needs review" success message from
+>    Entry 8 still says "…available to view on Archive," which is no longer
+>    true. Change it to: "Saved. This document is now flagged as Needs Review."
+>    The "Mark as reviewed" message is unaffected (that document really does go
+>    to Archive) — keep it exactly.
+>
+> Don't touch review submission logic, the /api/review route, Reopen, or
+> store.jsx.
+>
+> (follow-up) Add Entry 10 documenting this correction and why.
+
+### What changed
+
+- **`client/src/screens/Dashboard.jsx`** —
+  - Status filter now uses two sentinels (never real values):
+    `ACTIVE = '__active'` (the default: `['Needs Review', 'Processed']`) and
+    `ALL = '__all'`. `filters.status` init is `ACTIVE`. Filter logic:
+    `ACTIVE` → must be one of the two active statuses; `ALL` → no constraint;
+    any real value → exact match.
+  - Status pulled out of the generic `FILTER_KEYS` map into its own `<Select>`
+    (`w-56`): items are "Needs Review + Processed" (`ACTIVE`), the data-derived
+    statuses, then "All statuses" (`ALL`). The other three filters unchanged.
+  - `hasActiveControls` treats `status === ACTIVE` as "not active";
+    `clearAll` resets to `{ status: ACTIVE }` (the default view) rather than
+    `{}`.
+  - `visible` gets a stable `.sort()` by `STATUS_RANK` (`Needs Review` 0,
+    `Processed` 1, else 9) — Needs Review first, newest-first preserved within
+    each group.
+- **`client/src/components/DocumentCard.jsx`** — `StatusBadge` stacked above
+  `UrgencyBadge` top-right (replacing the plain `<span>{doc.status}</span>` in
+  the meta row); `"Needs Review"` rows get the amber border + fill inline from
+  `REVIEW_STATUS_STYLES` (same code shape as Entry 9's ArchiveCard), and drop
+  the plum `hover:` classes for that case; everything else keeps the current
+  `border-border bg-card hover:…`.
+- **`client/src/screens/Archive.jsx`** — `archived` now filters
+  `d.status === 'Reviewed'` only; the `ARCHIVED` set and the `STATUS_RANK`
+  sort are gone (one status left, nothing to sort). Header comment updated.
+- **`client/src/components/ArchiveCard.jsx`** — removed the `needsReview` /
+  `accent` locals, the conditional `cn()` className, the inline `style`, and
+  the now-unused `cn` / `REVIEW_STATUS_STYLES` imports. The card is a plain
+  `border-border bg-card` again. `StatusBadge` render kept (always "Reviewed").
+- **`client/src/constants.js`** — `REVIEW_STATUS_STYLES` unchanged; comment
+  updated to say it now serves Dashboard + Archive and that "Processed" (and
+  anything else) falls back to the neutral stone values.
+- **`client/src/screens/DocumentDetail.jsx`** — the `savedAs === 'Needs Review'`
+  branch of the success message is now just
+  `'Saved. This document is now flagged as Needs Review.'`. The "Reviewed"
+  branch is byte-for-byte unchanged.
+
+### Not touched
+
+`submitReview` / the review flow, `/api/review` (server), `ReopenDialog`,
+`store.jsx`, `StatusBadge.jsx`, `UrgencyBadge`, and **`server/.env`**.
+
+### Verification done
+
+- `client` `npm run build` passes.
+- Browser (isolated stub, mixed dataset — 1 Processed, 2 Needs Review, 2
+  Reviewed):
+  - **Dashboard** default: 3 rows (2 Needs Review, then 1 Processed — sort
+    confirmed), count "3 of 5", Status trigger reads "Needs Review + Processed",
+    no Clear button. Needs Review cards: computed `bg rgb(255,244,229)` /
+    `border rgb(224,161,60)`; Processed card white / `rgb(231,225,217)`.
+  - Status dropdown: "Needs Review" → 2 rows; "Processed" → 1; "Reviewed" → 2
+    (reachable from Dashboard if explicitly picked); "All statuses" → all 5,
+    Needs Review first then Reviewed; each narrowing shows the Clear button;
+    Clear → back to the default view.
+  - **Archive**: only the 2 `Reviewed` rows, both white/neutral (no amber),
+    "Reviewed" StatusBadge, Reopen button present.
+  - **DocumentDetail**: "Flag as needs review" → "Saved. This document is now
+    flagged as Needs Review." (no Archive sentence); "Mark as reviewed" →
+    "Saved. This document is now marked as Reviewed. This document is now
+    available to view on Archive." (unchanged).
+  - No React console warnings.
+
+### Corrections needed:
+
+(to be filled in by hand after testing)

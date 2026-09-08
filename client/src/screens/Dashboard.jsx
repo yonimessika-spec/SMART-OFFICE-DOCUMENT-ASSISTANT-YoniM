@@ -24,26 +24,33 @@ import ErrorMessage from '../components/ErrorMessage.jsx'
 // F4 Dashboard + F5 Search & filters.
 // - free-text over file_name / sender_or_company / summary (shared: matchesQuery)
 // - filters: urgency, document_type, department, status (combinable)
-// - defaults to status "Processed" — the working inbox; other statuses stay
-//   reachable from the Status dropdown
+// - the Status filter defaults to the "active work" set: "Needs Review" (looked
+//   at, still needs action) + "Processed" (not looked at yet). "Reviewed"
+//   documents live on the Archive page. The dropdown still lets a user narrow to
+//   one status, or widen to all.
+// - "Needs Review" rows sort first and carry the amber StatusBadge treatment.
 // - clear "no results" state, clear empty-list state (F7)
 //
 // Filter option lists are derived from the data itself, so no value is ever
 // invented (SPEC.md §5).
 
-const DEFAULT_STATUS = 'Processed'
+// Status-filter sentinels (never real status values).
+const ACTIVE = '__active' // default: Needs Review + Processed
+const ALL = '__all' // every status, including Reviewed
+
+const ACTIVE_STATUSES = ['Needs Review', 'Processed']
+const STATUS_RANK = { 'Needs Review': 0, Processed: 1 } // Needs Review sorts first
 
 const FILTER_KEYS = [
   ['urgency', 'Urgency'],
   ['document_type', 'Type'],
   ['department', 'Department'],
-  ['status', 'Status'],
 ]
 
 export default function Dashboard() {
   const { documents, loading, error, refresh } = useDocuments()
   const [query, setQuery] = useState('')
-  const [filters, setFilters] = useState({ status: DEFAULT_STATUS })
+  const [filters, setFilters] = useState({ status: ACTIVE })
 
   const options = useMemo(() => {
     const acc = { urgency: new Set(), document_type: new Set(), department: new Set(), status: new Set() }
@@ -53,29 +60,35 @@ export default function Dashboard() {
     return Object.fromEntries(Object.entries(acc).map(([k, v]) => [k, [...v].sort()]))
   }, [documents])
 
-  // `documents` already arrives newest-first from the API layer. Filtering
-  // preserves that order — received_at is an opaque string and is never sorted.
   const visible = useMemo(() => {
-    return documents.filter(
-      (d) =>
-        matchesQuery(d, query) &&
-        FILTER_KEYS.every(([k]) => !filters[k] || d[k] === filters[k]),
-    )
+    const s = filters.status
+    return documents
+      .filter((d) => {
+        if (!matchesQuery(d, query)) return false
+        // status: ACTIVE -> the two active statuses; ALL -> no constraint;
+        // a real value -> just that one
+        if (s === ACTIVE && !ACTIVE_STATUSES.includes(d.status)) return false
+        if (s !== ACTIVE && s !== ALL && d.status !== s) return false
+        return FILTER_KEYS.every(([k]) => !filters[k] || d[k] === filters[k])
+      })
+      // stable sort keeps the API layer's newest-first order within each group;
+      // "Needs Review" ahead of "Processed", anything else last
+      .sort((a, b) => (STATUS_RANK[a.status] ?? 9) - (STATUS_RANK[b.status] ?? 9))
   }, [documents, query, filters])
 
-  // The default status filter doesn't count as an "active" control.
   const hasActiveControls =
     query.trim() ||
-    Object.entries(filters).some(
-      ([k, v]) => v && !(k === 'status' && v === DEFAULT_STATUS),
-    )
+    filters.urgency ||
+    filters.document_type ||
+    filters.department ||
+    filters.status !== ACTIVE
 
   function setFilter(key, value) {
     setFilters((prev) => ({ ...prev, [key]: value || undefined }))
   }
   function clearAll() {
     setQuery('')
-    setFilters({})
+    setFilters({ status: ACTIVE })
   }
 
   if (loading) {
@@ -128,6 +141,25 @@ export default function Dashboard() {
               </SelectContent>
             </Select>
           ))}
+
+          <Select
+            value={filters.status || ACTIVE}
+            onValueChange={(v) => setFilters((prev) => ({ ...prev, status: v }))}
+          >
+            <SelectTrigger className="w-56" aria-label="Status">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={ACTIVE}>Needs Review + Processed</SelectItem>
+              {options.status.map((v) => (
+                <SelectItem key={v} value={v}>
+                  {v}
+                </SelectItem>
+              ))}
+              <SelectItem value={ALL}>All statuses</SelectItem>
+            </SelectContent>
+          </Select>
+
           {hasActiveControls && (
             <Button type="button" variant="ghost" size="sm" onClick={clearAll}>
               Clear
@@ -162,9 +194,6 @@ export default function Dashboard() {
       ) : (
         <div className="flex flex-col gap-3">
           {visible.map((d) => (
-            // document_id is empty until Workflow A exists (M4); fall back to the
-            // file_name, which is unique in the current dataset. Once Workflow A
-            // populates document_id this naturally prefers it.
             <DocumentCard key={d.document_id || d.file_name} doc={d} />
           ))}
         </div>
