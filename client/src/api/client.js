@@ -7,15 +7,11 @@
 // Wire these up ONE AT A TIME, in this order (SPEC.md §6):
 //   1. getDocuments   -> GET  /api/documents   [IMPLEMENTED]
 //   2. processDocument -> POST /api/process    [IMPLEMENTED]
-//   3. reviewDocument  -> POST /api/review     [not yet — throwing stub below]
+//   3. reviewDocument  -> POST /api/review     [IMPLEMENTED]
 //
 // Request/response shapes: CONTRACT.md §1–§6.
 
 const SERVER_BASE_URL = import.meta.env.VITE_SERVER_BASE_URL
-
-const NOT_IMPLEMENTED =
-  'Real endpoint not implemented yet. Set the matching VITE_USE_MOCK_* flag to ' +
-  'true in client/.env, or wire this call to the Express proxy (see SPEC.md §6).'
 
 // GET /api/documents  ->  CONTRACT.md §4
 // The proxy forwards n8n's response unchanged: a flat array of document rows in
@@ -117,9 +113,53 @@ export async function processDocument(payload) {
   return body
 }
 
-// POST /api/review  ->  CONTRACT.md §5 (request) / §6 (response, 404 if no match)
-// payload: { document_id, status, reviewed_by, review_note? }
+// POST /api/review  ->  CONTRACT.md §5 (request) / §6 (response)
+//
+// `payload` is { document_id, status, reviewed_by, review_note } — passed
+// through as-is. `status` is "Reviewed" | "Needs Review" | "Processed"
+// (the last one reopens a document; the backend clears reviewed_by/review_note).
+//
+// Success (200): { status: "updated", document_id }.
+// No match (404): { status: "error", error_code: "DOCUMENT_NOT_FOUND", message }.
+//
+// Same shape/handling as processDocument().
 export async function reviewDocument(payload) {
-  // TODO(step: connect /api/review) — see SPEC.md §6.
-  throw new Error(NOT_IMPLEMENTED)
+  if (!SERVER_BASE_URL) {
+    throw new Error(
+      'VITE_SERVER_BASE_URL is not set. Add it to client/.env (e.g. http://localhost:5055).',
+    )
+  }
+
+  let res
+  try {
+    res = await fetch(`${SERVER_BASE_URL}/api/review`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify(payload),
+    })
+  } catch (cause) {
+    // fetch only rejects on network-level failure (server down, DNS, CORS).
+    throw new Error(`Could not reach the server at ${SERVER_BASE_URL}. Is it running?`, { cause })
+  }
+
+  const body = await res.json().catch(() => null)
+
+  if (!res.ok || body?.status === 'error') {
+    const err = new Error(
+      body?.message || `The server returned ${res.status} for /api/review.`,
+    )
+    err.status = res.status
+    // error_code drives ErrorMessage's messageFor() -> ERROR_MESSAGES map.
+    if (body?.error_code) err.code = body.error_code
+    throw err
+  }
+
+  if (!body) {
+    const err = new Error('The server returned an empty response for /api/review.')
+    err.status = res.status
+    throw err
+  }
+
+  // CONTRACT.md §6 success shape — { status: "updated", document_id }.
+  return body
 }

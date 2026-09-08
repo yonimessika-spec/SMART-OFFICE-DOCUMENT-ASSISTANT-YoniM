@@ -57,7 +57,24 @@ export function DocumentsProvider({ children }) {
     )
   }, [])
 
-  const value = { documents, loading, error, refresh, upsertProcessed, applyReview }
+  // Flip a document back to unreviewed after a successful reopen call
+  // (/api/review with status "Processed"). Same local state shape as a review;
+  // the backend has already cleared reviewed_by / review_note server-side.
+  const reopenDocument = useCallback(
+    (documentId) =>
+      applyReview(documentId, { status: 'Processed', review_note: '', reviewed_by: '' }),
+    [applyReview],
+  )
+
+  const value = {
+    documents,
+    loading,
+    error,
+    refresh,
+    upsertProcessed,
+    applyReview,
+    reopenDocument,
+  }
   return <DocumentsContext.Provider value={value}>{children}</DocumentsContext.Provider>
 }
 

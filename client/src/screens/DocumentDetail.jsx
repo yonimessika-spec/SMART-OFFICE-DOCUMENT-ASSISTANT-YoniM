@@ -174,7 +174,8 @@ export default function DocumentDetail() {
               {phase === 'done' && (
                 <p className="flex items-center gap-2 text-sm font-medium">
                   <CircleCheck aria-hidden="true" className="size-4 text-primary" />
-                  Saved. This document is now marked as Reviewed.
+                  Saved. This document is now marked as Reviewed. This document is
+                  now available to view on Archive.
                 </p>
               )}
 

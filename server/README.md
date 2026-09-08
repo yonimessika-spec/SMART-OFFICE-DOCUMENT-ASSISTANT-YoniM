@@ -11,7 +11,7 @@ forwards and attaches the header (SPEC.md §5).
 ```bash
 cd server
 npm install
-cp .env.example .env    # then fill in N8N_BASE_URL, N8N_DOCUMENTS_PATH, N8N_PROCESS_PATH, N8N_SECRET
+cp .env.example .env    # then fill in N8N_BASE_URL, the three N8N_*_PATH values, N8N_SECRET
 npm run dev             # node --watch, port from PORT (.env.example: 5055)
 ```
 
@@ -24,8 +24,8 @@ is missing.
 |-------------------|--------------------------------------------|--------|
 | `GET /api/documents` | `{N8N_BASE_URL}{N8N_DOCUMENTS_PATH}`     | implemented |
 | `POST /api/process` | `{N8N_BASE_URL}{N8N_PROCESS_PATH}`        | implemented (JSON body ≤ 20 MB) |
+| `POST /api/review` | `{N8N_BASE_URL}{N8N_REVIEW_PATH}`          | implemented |
 | `GET /health`     | —                                          | liveness check |
-| `POST /api/review` | `{N8N_BASE_URL}{N8N_REVIEW_PATH}`          | later milestone |
 
 ## Error shape
 

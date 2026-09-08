@@ -34,12 +34,14 @@ export const FIELD_LABELS = [
   ['department', 'Department'],
 ]
 
-// CONTRACT.md §3: error_code -> plain-language sentence (SPEC.md F7).
+// error_code -> plain-language sentence (SPEC.md F7).
+// CONTRACT.md §3 (process) + §6 (review).
 export const ERROR_MESSAGES = {
   UNSUPPORTED_FILE_TYPE: 'Only PDF, DOCX and TXT files can be processed.',
   EMPTY_DOCUMENT: 'No readable text — try a different file.',
   EXTRACTION_FAILED: 'The document could not be read. You can try again.',
   UNAUTHORIZED: 'Configuration error: the server rejected our credentials. This is not something you can fix here.',
+  DOCUMENT_NOT_FOUND: 'That document is no longer in the sheet — it may have been removed.',
 }
 
 export const GENERIC_ERROR =

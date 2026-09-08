@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react'
-import { Search } from 'lucide-react'
 import { useDocuments } from '../store.jsx'
-import { Input } from '@/components/ui/input'
+import { matchesQuery } from '../search.js'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
@@ -18,17 +17,21 @@ import {
   EmptyHeader,
   EmptyTitle,
 } from '@/components/ui/empty'
+import SearchField from '../components/SearchField.jsx'
 import DocumentCard from '../components/DocumentCard.jsx'
 import ErrorMessage from '../components/ErrorMessage.jsx'
 
 // F4 Dashboard + F5 Search & filters.
-// - list every document, newest first
-// - free-text over file_name / sender_or_company / summary
+// - free-text over file_name / sender_or_company / summary (shared: matchesQuery)
 // - filters: urgency, document_type, department, status (combinable)
+// - defaults to status "Processed" — the working inbox; other statuses stay
+//   reachable from the Status dropdown
 // - clear "no results" state, clear empty-list state (F7)
 //
 // Filter option lists are derived from the data itself, so no value is ever
 // invented (SPEC.md §5).
+
+const DEFAULT_STATUS = 'Processed'
 
 const FILTER_KEYS = [
   ['urgency', 'Urgency'],
@@ -40,7 +43,7 @@ const FILTER_KEYS = [
 export default function Dashboard() {
   const { documents, loading, error, refresh } = useDocuments()
   const [query, setQuery] = useState('')
-  const [filters, setFilters] = useState({})
+  const [filters, setFilters] = useState({ status: DEFAULT_STATUS })
 
   const options = useMemo(() => {
     const acc = { urgency: new Set(), document_type: new Set(), department: new Set(), status: new Set() }
@@ -53,20 +56,19 @@ export default function Dashboard() {
   // `documents` already arrives newest-first from the API layer. Filtering
   // preserves that order — received_at is an opaque string and is never sorted.
   const visible = useMemo(() => {
-    const q = query.trim().toLowerCase()
-    return documents.filter((d) => {
-      if (q) {
-        const haystack = [d.file_name, d.sender_or_company, d.summary]
-          .filter(Boolean)
-          .join(' ')
-          .toLowerCase()
-        if (!haystack.includes(q)) return false
-      }
-      return FILTER_KEYS.every(([k]) => !filters[k] || d[k] === filters[k])
-    })
+    return documents.filter(
+      (d) =>
+        matchesQuery(d, query) &&
+        FILTER_KEYS.every(([k]) => !filters[k] || d[k] === filters[k]),
+    )
   }, [documents, query, filters])
 
-  const hasActiveControls = query.trim() || Object.values(filters).some(Boolean)
+  // The default status filter doesn't count as an "active" control.
+  const hasActiveControls =
+    query.trim() ||
+    Object.entries(filters).some(
+      ([k, v]) => v && !(k === 'status' && v === DEFAULT_STATUS),
+    )
 
   function setFilter(key, value) {
     setFilters((prev) => ({ ...prev, [key]: value || undefined }))
@@ -104,20 +106,7 @@ export default function Dashboard() {
       </div>
 
       <div className="flex flex-col gap-3">
-        <div className="relative">
-          <Search
-            aria-hidden="true"
-            className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
-          />
-          <Input
-            type="search"
-            placeholder="Search file name, sender, or summary…"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            aria-label="Search documents"
-            className="pl-9"
-          />
-        </div>
+        <SearchField value={query} onChange={setQuery} />
 
         <div className="flex flex-wrap gap-2">
           {FILTER_KEYS.map(([key, label]) => (

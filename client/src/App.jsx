@@ -5,6 +5,7 @@ import { buttonVariants } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import Dashboard from './screens/Dashboard.jsx'
 import Upload from './screens/Upload.jsx'
+import Archive from './screens/Archive.jsx'
 import DocumentDetail from './screens/DocumentDetail.jsx'
 
 // Honestly show which calls are still served by the mock (SPEC.md §1).
@@ -35,6 +36,9 @@ export default function App() {
             <NavLink to="/" end className={navLink}>
               Dashboard
             </NavLink>
+            <NavLink to="/archive" className={navLink}>
+              Archive
+            </NavLink>
             <NavLink to="/upload" className={navLink}>
               Upload
             </NavLink>
@@ -53,6 +57,7 @@ export default function App() {
       <main className="mx-auto w-full max-w-4xl px-4 py-8 sm:px-6">
         <Routes>
           <Route path="/" element={<Dashboard />} />
+          <Route path="/archive" element={<Archive />} />
           <Route path="/upload" element={<Upload />} />
           <Route path="/document/:id" element={<DocumentDetail />} />
           <Route

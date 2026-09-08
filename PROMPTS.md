@@ -451,3 +451,140 @@ New n8n workflow "Doc Assistant - Upload Endpoint" implementing `POST /process-d
 ### Corrections needed:
 
 (to be filled in by hand after testing)
+
+---
+
+## Entry 7 — Real /api/review + Archive page + Reopen modal
+
+**Date:** 2026-09-08
+
+### Prompt
+
+> Read SPEC.md, CONTRACT.md, PROMPTS.md (Entries 5/6). Workflow C
+> "Doc Assistant - Review Endpoint" is live at POST /review — 200
+> `{ status:"updated", document_id }`, 404 `{ status:"error",
+> error_code:"DOCUMENT_NOT_FOUND", message }`. `status` in the request now also
+> accepts "Processed" (reopens a document; the backend clears
+> reviewed_by/review_note itself). Follow existing conventions (shadcn/ui, the
+> plum-rose token palette, the Field/FieldGroup/FieldList patterns, the
+> store.jsx pattern).
+>
+> 1. Real `/api/review` wiring: implement `reviewDocument(payload)` in
+>    `client.js` (POST payload as-is, return JSON on 200, throw with
+>    `err.status` + `err.code` on non-2xx / `body.status === 'error'`, same
+>    pattern as `processDocument`); add `POST /api/review` to `server/index.js`
+>    (forward to `${N8N_BASE_URL}${N8N_REVIEW_PATH}` with `x-api-key`, add
+>    `N8N_REVIEW_PATH` to the env destructure + required check, don't touch
+>    `server/.env`); `client/.env` → `VITE_USE_MOCK_REVIEW=false`.
+> 2. Dashboard: default the status filter to "Processed" (dropdown still lets a
+>    user pick other statuses — only the default changes).
+> 3. New Archive page (`/archive`): documents with status "Reviewed" or
+>    "Needs Review"; same F5 free-text search as Dashboard, reusing shared
+>    logic/components; "Archive" nav link; each row has a "Reopen" button.
+> 4. Reopen confirmation modal (shadcn Dialog): text input, confirm button
+>    disabled until the user types exactly "Reopen"; on confirm call
+>    `reviewDocument({ document_id, status:"Processed", reviewed_by:"",
+>    review_note:"" })`; on success remove the doc from Archive's view via
+>    store.jsx state (consistent with `applyReview`) so Dashboard picks it back
+>    up; on error show a plain-language message in the modal (reuse
+>    `messageFor`) rather than closing silently.
+>
+> Additive: one new page, one nav link, one default-filter change, one
+> mock-to-real swap. Don't touch `getDocuments`, `processDocument`, `mock.js`'s
+> review shape, or the Upload/DocumentDetail review-submission logic.
+
+### Clarification given during the task
+
+- Prompt step 4 says "update store.jsx state consistently with `applyReview`".
+  `applyReview(id, { status:'Processed', review_note:'', reviewed_by:'' })`
+  already does exactly the reopen state change, so store.jsx gets a thin
+  **`reopenDocument(documentId)`** wrapper that delegates to it — no new state
+  logic.
+
+### What changed
+
+- **`server/index.js`** — `N8N_REVIEW_PATH` added to the env destructure and the
+  required-vars check. New `POST /api/review` route: `express.json()` (small
+  body), forwards to `{N8N_BASE_URL}{N8N_REVIEW_PATH}` with `x-api-key`
+  server-side, passes n8n's status + JSON body through verbatim (incl. the 404
+  `DOCUMENT_NOT_FOUND`), same `AbortController` → 504 / 502 handling. Header
+  comment + startup logs updated.
+- **`client/src/api/client.js`** — `reviewDocument(payload)` implemented,
+  structurally identical to `processDocument`: POST `/api/review`, return the
+  §6 body on 200, throw `Error(body.message || …)` with `err.status` +
+  `err.code = body.error_code` on `!res.ok` / `body.status === 'error'`.
+- **`client/src/constants.js`** — one entry added to `ERROR_MESSAGES`:
+  `DOCUMENT_NOT_FOUND` (same "error_code → sentence" pattern as the §3 codes).
+- **`client/.env`** — `VITE_USE_MOCK_REVIEW=false` (all three flags now real).
+- **`client/src/store.jsx`** — `reopenDocument(documentId)` added and exposed on
+  the context; delegates to `applyReview`.
+- **`client/src/screens/Dashboard.jsx`** — `filters` initial state is
+  `{ status: 'Processed' }`; `hasActiveControls` ignores that default so
+  "Clear" isn't always showing; `clearAll` → `{}` (show everything). Search box
+  and haystack match now come from the shared `SearchField` / `matchesQuery`.
+- **`client/src/search.js`** (new) — `matchesQuery(doc, query)`, extracted from
+  Dashboard's F5.
+- **`client/src/components/SearchField.jsx`** (new) — the search `Input` + icon,
+  extracted from Dashboard.
+- **`client/src/screens/Archive.jsx`** (new) — `/archive`; filters to status
+  `Reviewed` / `Needs Review`; shared search; loading/error states like
+  Dashboard; rows via `ArchiveCard`.
+- **`client/src/components/ArchiveCard.jsx`** (new) — a non-link card (contains
+  the Reopen button); file name links to `/document/:id`; reuses `UrgencyBadge`
+  / `FieldValue` / `Badge`; shows the review note + reviewer.
+- **`client/src/components/ReopenDialog.jsx`** (new) — "Reopen" button +
+  controlled shadcn `Dialog`. Confirm disabled until the input `=== "Reopen"`.
+  Confirm → `reviewDocument({ …, status:'Processed', reviewed_by:'',
+  review_note:'' })` → on `{status:'updated'}` call `reopenDocument()` and
+  close; on error render `<ErrorMessage>` inside the dialog and stay open;
+  resets state on close; can't be dismissed mid-request.
+- **`client/src/components/ui/dialog.jsx`** (new via `shadcn add dialog`) — one
+  local patch: `DialogOverlay` wrapped in `React.forwardRef`. On React 18,
+  radix-ui's Portal/Presence clones that child with a ref and the plain
+  function version logged a "Function components cannot be given refs" warning.
+  Trigger uses a plain `<Button onClick>` (not `<DialogTrigger asChild>`) for
+  the same reason.
+- **`client/src/App.jsx`** — `Archive` import, `/archive` route, "Archive"
+  `NavLink` between Dashboard and Upload.
+- **`server/README.md`** — route table + run note updated.
+
+### Not touched
+
+- `getDocuments`, `processDocument`, `client/src/api/index.js`,
+  `client/src/api/mock.js` (review mock still CONTRACT §6), the
+  Upload/DocumentDetail review-submission code, and **`server/.env`**.
+
+### Verification done
+
+- `client` `npm run build` passes.
+- Server (`node --env-file=.env.test index.js`, fake n8n stub with a mutable
+  5-row sheet): `POST /api/review` match → 200 `{status:"updated"}`; no match →
+  404 `{error_code:"DOCUMENT_NOT_FOUND"}`; `x-api-key` attached.
+- Browser (all three flags real, fake n8n):
+  - **Dashboard** defaults to the 2 `Processed` rows ("2 of 5 documents", no
+    Clear button); picking "Reviewed" from the Status dropdown shows the
+    reviewed rows + a Clear button.
+  - **Archive** lists the 3 `Reviewed` / `Needs Review` rows with notes,
+    reviewer, and a Reopen button each; shared search box present.
+  - **Reopen modal**: confirm disabled until "Reopen" typed exactly →
+    `reviewDocument(status:"Processed")` → row disappears from Archive and
+    appears on the Dashboard as `Processed` (via `reopenDocument`→`applyReview`).
+  - **Reopen error**: with the proxy unreachable, the modal stays open and
+    shows the plain sentence; the row is not removed. 404
+    `DOCUMENT_NOT_FOUND` → proxy body verified to carry `error_code`, which
+    `messageFor` maps to the new sentence.
+  - No React console warnings after the `forwardRef` patch.
+  - DocumentDetail F6 review is the same `reviewDocument` code path as the
+    verified reopen flow (status "Reviewed" instead of "Processed"); unchanged.
+
+### Action required on Yoni's side
+
+- `server/.env` must contain **`N8N_REVIEW_PATH`** (it's in `.env.example` as
+  `/review`). The server now requires it and will `exit(1)` until it's set.
+  I did not open `server/.env`.
+- Restart `server/` (new route + required var) and the `client/` dev server
+  (`VITE_USE_MOCK_REVIEW=false`).
+
+### Corrections needed:
+
+(to be filled in by hand after testing)

@@ -7,10 +7,8 @@
 //
 // Routes implemented so far:
 //   GET  /api/documents  ->  {N8N_BASE_URL}{N8N_DOCUMENTS_PATH}
-//   POST /api/process     ->  {N8N_BASE_URL}{N8N_PROCESS_PATH}
-//
-// /api/review comes in a later milestone; its n8n path is already in
-// .env.example so the config file won't need restructuring then.
+//   POST /api/process    ->  {N8N_BASE_URL}{N8N_PROCESS_PATH}
+//   POST /api/review     ->  {N8N_BASE_URL}{N8N_REVIEW_PATH}
 //
 // Env is loaded by `node --env-file-if-exists=.env` (see package.json scripts).
 
@@ -21,13 +19,20 @@ const {
   N8N_BASE_URL,
   N8N_DOCUMENTS_PATH,
   N8N_PROCESS_PATH,
+  N8N_REVIEW_PATH,
   N8N_SECRET,
   REQUEST_TIMEOUT_MS = '90000',
   PORT = '3001',
 } = process.env
 
 // Fail fast with a readable message if the operator forgot to copy .env.example.
-const REQUIRED = { N8N_BASE_URL, N8N_DOCUMENTS_PATH, N8N_PROCESS_PATH, N8N_SECRET }
+const REQUIRED = {
+  N8N_BASE_URL,
+  N8N_DOCUMENTS_PATH,
+  N8N_PROCESS_PATH,
+  N8N_REVIEW_PATH,
+  N8N_SECRET,
+}
 const missing = Object.entries(REQUIRED)
   .filter(([, value]) => !value)
   .map(([key]) => key)
@@ -152,6 +157,57 @@ app.post('/api/process', express.json({ limit: '20mb' }), async (req, res) => {
   }
 })
 
+// POST /api/review  ->  n8n POST {N8N_BASE_URL}{N8N_REVIEW_PATH}
+// Same pattern as the other two: attach x-api-key server-side, forward n8n's
+// status + JSON body through verbatim on both success (CONTRACT §6:
+// { status: "updated", document_id }) and error (404 { status: "error",
+// error_code: "DOCUMENT_NOT_FOUND", message }). The review body is small, so
+// express.json's default limit is fine here.
+app.post('/api/review', express.json(), async (req, res) => {
+  const target = `${N8N_BASE_URL}${N8N_REVIEW_PATH}`
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), timeoutMs)
+
+  try {
+    const upstream = await fetch(target, {
+      method: 'POST',
+      headers: {
+        'x-api-key': N8N_SECRET, // attached server-side; never sent to the browser
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      body: JSON.stringify(req.body),
+      signal: controller.signal,
+    })
+
+    const raw = await upstream.text()
+    let body
+    try {
+      body = JSON.parse(raw)
+    } catch {
+      return res.status(502).json({
+        error: 'The automation service returned a response that was not valid JSON.',
+      })
+    }
+
+    // Pass n8n's status and body straight through, success or error.
+    const payload =
+      body && typeof body === 'object' ? body : { error: String(body) }
+    return res.status(upstream.status).json(payload)
+  } catch (err) {
+    if (err.name === 'AbortError') {
+      return res
+        .status(504)
+        .json({ error: 'The automation service took too long to respond.' })
+    }
+    return res
+      .status(502)
+      .json({ error: 'Could not reach the automation service.' })
+  } finally {
+    clearTimeout(timer)
+  }
+})
+
 // Lightweight liveness check for local dev.
 app.get('/health', (_req, res) => res.json({ ok: true }))
 
@@ -159,4 +215,5 @@ app.listen(Number(PORT), () => {
   console.log(`[server] proxy listening on http://localhost:${PORT}`)
   console.log(`[server] GET  /api/documents -> ${N8N_BASE_URL}${N8N_DOCUMENTS_PATH}`)
   console.log(`[server] POST /api/process   -> ${N8N_BASE_URL}${N8N_PROCESS_PATH}`)
+  console.log(`[server] POST /api/review    -> ${N8N_BASE_URL}${N8N_REVIEW_PATH}`)
 })
