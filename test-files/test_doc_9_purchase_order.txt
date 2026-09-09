@@ -1,0 +1,26 @@
+Subject: Purchase Order Confirmation - HR Software Subscription
+
+From: Rachel Amit, Finance Manager
+Company: TalentFlow HR Solutions
+To: Mayali Consulting
+Date: August 5, 2026
+PO Number: TF-2026-0805
+
+Hi Yoni,
+
+This email confirms your purchase order for the following:
+
+Item: TalentFlow HR Automation Platform - Annual Subscription (5 seats)
+Total: $2,400 (billed annually)
+Contract Start Date: August 15, 2026
+
+Please review the attached agreement and return the signed copy by August 14, 2026
+so we can activate your account on the scheduled start date.
+
+If any changes are needed before signing, please let me know as soon as possible.
+
+Best regards,
+Rachel Amit
+TalentFlow HR Solutions
+rachel.amit@talentflow.co.il
++972-3-555-0123
