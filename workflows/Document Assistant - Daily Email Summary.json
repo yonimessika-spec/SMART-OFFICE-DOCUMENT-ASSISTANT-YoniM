@@ -1,0 +1,165 @@
+{
+  "name": "Document Assistant - Daily Email Summary",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 18
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -80,
+        0
+      ],
+      "id": "05656422-4ef6-4de6-9423-302abfe49481",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1MscivqX0yer39GkAABIyGIUSf3LhPNGFumbbDg84I6M",
+          "mode": "list",
+          "cachedResultName": "Document - Processing Log",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1MscivqX0yer39GkAABIyGIUSf3LhPNGFumbbDg84I6M/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1MscivqX0yer39GkAABIyGIUSf3LhPNGFumbbDg84I6M/edit#gid=0"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        144,
+        0
+      ],
+      "id": "7d76f1a9-dd53-42ec-8eda-92e88a3bbfa1",
+      "name": "DocAssistant Google Sheet - retrieving data",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "kWXQv3S6jEYrUEKT",
+          "name": "Google Sheets GoldenShabbat"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "3fd7b841-bc18-4925-8737-988e17fa3aa4",
+              "leftValue": "={{ $json['Received At'].split(' ')[0] }}",
+              "rightValue": "={{ $now.format('dd/MM/yyyy') }}",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.3,
+      "position": [
+        368,
+        0
+      ],
+      "id": "a6b9bb58-d415-4125-a694-d6b8b1941286",
+      "name": "Today Only"
+    },
+    {
+      "parameters": {
+        "sendTo": "=yoni.messika@gmail.com",
+        "subject": "=Processed Documents - Daily Summary {{ $now.toFormat('yyyy-MM-dd') }} / ({{ $input.all().length }} documents)",
+        "message": "=<h2>📊 Daily Document Summary</h2>\n<p><strong>{{ $now.format('dd/MM/yyyy') }}</strong> — {{ $input.all().length }} documents processed today</p>\n\n<h3 style=\"color:#c0392b;margin-top:20px;\">🚨 Urgent</h3>\n<table style=\"width:100%;border-collapse:collapse;font-size:13px;\">\n  <thead><tr style=\"background:#f5f5f5;text-align:left;\">\n    <th style=\"padding:6px 10px;\">Type</th>\n    <th style=\"padding:6px 10px;\">From</th>\n    <th style=\"padding:6px 10px;\">Deadline</th>\n    <th style=\"padding:6px 10px;\">Dept</th>\n  </tr></thead>\n  <tbody>\n  {{ $input.all().filter(i => i.json.Urgency === 'High').map(i => '<tr><td style=\"padding:6px 10px;border-bottom:1px solid #eee;\">' + (i.json['Document Type'] || '—') + '</td><td style=\"padding:6px 10px;border-bottom:1px solid #eee;\">' + (i.json['Sender or Company'] || '—') + '</td><td style=\"padding:6px 10px;border-bottom:1px solid #eee;color:#555;\">' + (i.json.Deadline || '—') + '</td><td style=\"padding:6px 10px;border-bottom:1px solid #eee;color:#555;\">' + (i.json.Department || '—') + '</td></tr>').join('') }}\n  </tbody>\n</table>\n\n<h3 style=\"color:#e67e22;margin-top:20px;\">⚠️ Normal</h3>\n<table style=\"width:100%;border-collapse:collapse;font-size:13px;\">\n  <thead><tr style=\"background:#f5f5f5;text-align:left;\">\n    <th style=\"padding:6px 10px;\">Type</th>\n    <th style=\"padding:6px 10px;\">From</th>\n    <th style=\"padding:6px 10px;\">Deadline</th>\n    <th style=\"padding:6px 10px;\">Dept</th>\n  </tr></thead>\n  <tbody>\n  {{ $input.all().filter(i => i.json.Urgency === 'Medium').map(i => '<tr><td style=\"padding:6px 10px;border-bottom:1px solid #eee;\">' + (i.json['Document Type'] || '—') + '</td><td style=\"padding:6px 10px;border-bottom:1px solid #eee;\">' + (i.json['Sender or Company'] || '—') + '</td><td style=\"padding:6px 10px;border-bottom:1px solid #eee;color:#555;\">' + (i.json.Deadline || '—') + '</td><td style=\"padding:6px 10px;border-bottom:1px solid #eee;color:#555;\">' + (i.json.Department || '—') + '</td></tr>').join('') }}\n  </tbody>\n</table>\n\n<h3 style=\"color:#7f8c8d;margin-top:20px;\">📄 Informational</h3>\n<table style=\"width:100%;border-collapse:collapse;font-size:13px;\">\n  <thead><tr style=\"background:#f5f5f5;text-align:left;\">\n    <th style=\"padding:6px 10px;\">Type</th>\n    <th style=\"padding:6px 10px;\">From</th>\n    <th style=\"padding:6px 10px;\">Deadline</th>\n    <th style=\"padding:6px 10px;\">Dept</th>\n  </tr></thead>\n  <tbody>\n  {{ $input.all().filter(i => i.json.Urgency === 'Low').map(i => '<tr><td style=\"padding:6px 10px;border-bottom:1px solid #eee;\">' + (i.json['Document Type'] || '—') + '</td><td style=\"padding:6px 10px;border-bottom:1px solid #eee;\">' + (i.json['Sender or Company'] || '—') + '</td><td style=\"padding:6px 10px;border-bottom:1px solid #eee;color:#555;\">' + (i.json.Deadline || '—') + '</td><td style=\"padding:6px 10px;border-bottom:1px solid #eee;color:#555;\">' + (i.json.Department || '—') + '</td></tr>').join('') }}\n  </tbody>\n</table>\n\n<p style=\"color:#888;font-size:12px;margin-top:24px;\">Full details in the <a href=\"YOUR_SHEET_URL_HERE\">Document Processing Log</a>.</p>",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        592,
+        0
+      ],
+      "id": "4480d9b0-388f-42a2-86c7-efcede1295eb",
+      "name": "Send Daily Email Summary",
+      "webhookId": "dd56c720-daa3-4ad2-9227-0dc1789805c7",
+      "executeOnce": true,
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "lKPK3kM4VY7vkZgf",
+          "name": "Gmail GoldenShabbat"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "DocAssistant Google Sheet - retrieving data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DocAssistant Google Sheet - retrieving data": {
+      "main": [
+        [
+          {
+            "node": "Today Only",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Today Only": {
+      "main": [
+        [
+          {
+            "node": "Send Daily Email Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "4b6b20c1-070a-4f1e-97da-d5dd3ee16193",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "558cd4414acf9ac99d068f1c2801df0500a48eb2c978e24e1653db67a9150841"
+  },
+  "nodeGroups": [],
+  "id": "08MEY4BgP7OiqplY",
+  "tags": []
+}

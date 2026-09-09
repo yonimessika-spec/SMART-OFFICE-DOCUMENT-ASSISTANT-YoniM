@@ -1,0 +1,423 @@
+{
+  "name": "Document Assistant - Upload Endpoint",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "process-document",
+        "authentication": "headerAuth",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -256,
+        -80
+      ],
+      "id": "79d69747-78b1-43ff-ad58-4f58d000e1a6",
+      "name": "Webhook",
+      "webhookId": "c54d02a6-b3dc-4623-89cb-8aa2dcf63b74",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "xVJ2D4rOZpvfPSBh",
+          "name": "Doc Assistant API Secret"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "0f7e507b-79ed-4b74-b698-a0a523aa90f6",
+              "leftValue": "={{ ['application/pdf','application/vnd.openxmlformats-officedocument.wordprocessingml.document','text/plain'].includes($json.body.mime_type) }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -32,
+        -80
+      ],
+      "id": "72e6b949-3a24-4230-b9bc-ac4af3e0ab31",
+      "name": "Validate mimeType"
+    },
+    {
+      "parameters": {
+        "operation": "toBinary",
+        "sourceProperty": "body.file_base64",
+        "options": {
+          "fileName": "={{ $json.body.file_name }}"
+        }
+      },
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.1,
+      "position": [
+        192,
+        -176
+      ],
+      "id": "01a535d2-3a46-4999-9811-e52c9b7a16e9",
+      "name": "Convert to File"
+    },
+    {
+      "parameters": {
+        "name": "={{ $json.body.file_name }}",
+        "driveId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "My Drive"
+        },
+        "folderId": {
+          "__rl": true,
+          "value": "1my3i46QOAVwFfDp4mbsMGcCdZVkXNkwE",
+          "mode": "list",
+          "cachedResultName": "Processed Documents",
+          "cachedResultUrl": "https://drive.google.com/drive/folders/1my3i46QOAVwFfDp4mbsMGcCdZVkXNkwE"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        416,
+        -96
+      ],
+      "id": "7b59c323-9629-4381-bcf8-37c2789752a7",
+      "name": "Upload file",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "oX0dwyUnbQGlDdRS",
+          "name": "Google Drive YM"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "FDIWDBWQOdwb41gT",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/FDIWDBWQOdwb41gT",
+          "cachedResultName": "Doc Assistant - Process Document"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "file_name": "={{ $('Webhook').item.json.body.file_name }}",
+            "file_link": "={{ $json.webViewLink }}",
+            "mimeType": "={{ $('Webhook').item.json.body.mime_type }}",
+            "submitted_by": "={{ $('Webhook').item.json.body.submitted_by }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "file_name",
+              "displayName": "file_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "file_link",
+              "displayName": "file_link",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "submitted_by",
+              "displayName": "submitted_by",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "mimeType",
+              "displayName": "mimeType",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        864,
+        -176
+      ],
+      "id": "0d2b75cf-5a5d-4d87-bee9-2b6fe69bca7f",
+      "name": "Call 'Doc Assistant - Process Document'",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        640,
+        -176
+      ],
+      "id": "f6128cc0-6b9f-4c5a-935a-e85d99f64d89",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"status\": \"processed\",\n  \"document_id\": \"{{ $json.document_id }}\",\n  \"file_name\": \"{{ $('Webhook').first().json.body.file_name }}\",\n  \"file_link\": \"{{ $json.file_link }}\",\n  \"received_at\": \"{{ $json.received_at }}\",\n  \"fields\": {{ JSON.stringify($json.fields) }},\n  \"notification_sent\": true\n}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1312,
+        -176
+      ],
+      "id": "fb12223a-761f-4144-baee-1842c39d3994",
+      "name": "Respond to Webhook - Success"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"status\": \"error\",\n  \"error_code\": \"UNSUPPORTED_FILE_TYPE\",\n  \"message\": \"{{ $json.body.mime_type }} is not a supported file type. Only PDF, DOCX and TXT files can be processed.\"\n}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        192,
+        16
+      ],
+      "id": "5ad2b6d0-8d4a-42e3-9952-9c98a6a47ac2",
+      "name": "Respond to Webhook - Error"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\n  \"status\": \"error\",\n  \"error_code\": \"EXTRACTION_FAILED\",\n  \"message\": \"The document could not be processed. Please try again.\"\n}",
+        "options": {
+          "responseCode": 500
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1088,
+        -80
+      ],
+      "id": "e0df1c75-485d-48cd-be47-b07ae7b18b90",
+      "name": "Respond to Webhook - Extraction Failed"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "6b64d280-cb0b-4a31-9243-afab91ed11fd",
+              "leftValue": "={{ ($json.fields.summary || '').trim().length === 0 }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1088,
+        -272
+      ],
+      "id": "31ca6e34-48d5-416e-bb27-aabc2d554dc6",
+      "name": "Check Empty Extraction"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\n  \"status\": \"error\",\n  \"error_code\": \"EMPTY_DOCUMENT\",\n  \"message\": \"No readable text was found in this document.\"\n}",
+        "options": {
+          "responseCode": 422
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1312,
+        -368
+      ],
+      "id": "394b1fc7-1657-42e4-bbfd-ad70825e5a64",
+      "name": "Respond to Webhook - Empty Document"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Validate mimeType",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate mimeType": {
+      "main": [
+        [
+          {
+            "node": "Convert to File",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond to Webhook - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Convert to File": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Upload file",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload file": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Call 'Doc Assistant - Process Document'",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call 'Doc Assistant - Process Document'": {
+      "main": [
+        [
+          {
+            "node": "Check Empty Extraction",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond to Webhook - Extraction Failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Empty Extraction": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook - Empty Document",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond to Webhook - Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "c670dfab-f997-492c-bd11-026ad372a0fc",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "558cd4414acf9ac99d068f1c2801df0500a48eb2c978e24e1653db67a9150841"
+  },
+  "nodeGroups": [],
+  "id": "cvxIu8pAxOeb1U2k",
+  "tags": []
+}

@@ -1,0 +1,256 @@
+{
+  "name": "Document Assistant -Get Documents",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "documents",
+        "authentication": "headerAuth",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -336,
+        0
+      ],
+      "id": "935cbf07-3bc1-41b3-9b2a-a3bfc5c05b27",
+      "name": "Webhook",
+      "webhookId": "eb08acf1-c701-48aa-a869-ec7979303949",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "xVJ2D4rOZpvfPSBh",
+          "name": "Doc Assistant API Secret"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1MscivqX0yer39GkAABIyGIUSf3LhPNGFumbbDg84I6M",
+          "mode": "list",
+          "cachedResultName": "Document - Processing Log",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1MscivqX0yer39GkAABIyGIUSf3LhPNGFumbbDg84I6M/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1MscivqX0yer39GkAABIyGIUSf3LhPNGFumbbDg84I6M/edit#gid=0"
+        },
+        "filtersUI": {
+          "values": []
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -112,
+        0
+      ],
+      "id": "ea172142-29f7-4d23-9499-a248d9b3bc0f",
+      "name": "Get row(s) in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "zevJxTjhhLBDEFOp",
+          "name": "Google YoniM"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "e045ed6d-261e-48df-8154-4c3aa2fd4dec",
+              "name": "document_id",
+              "value": "={{ $json[\"Document ID\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "17c1a807-b097-43be-a70d-a96f9d865e83",
+              "name": "received_at",
+              "value": "={{ $json['Received At'] }}",
+              "type": "string"
+            },
+            {
+              "id": "f070b3d0-b656-48e4-b1b6-c0d1963e2d2d",
+              "name": "file_name",
+              "value": "={{ $json['File Name'] }}",
+              "type": "string"
+            },
+            {
+              "id": "c1e2614b-a37e-4a6b-987f-8282fabfc2cb",
+              "name": "file_link",
+              "value": "={{ $json['File Link'] }}",
+              "type": "string"
+            },
+            {
+              "id": "6dc1be8d-102e-4698-b10a-ca18cd098a61",
+              "name": "document_type",
+              "value": "={{ $json['Document Type'] }}",
+              "type": "string"
+            },
+            {
+              "id": "7aa9de2c-5c1d-426f-b09f-2075ccee1f58",
+              "name": "sender_or_company",
+              "value": "={{ $json['Sender or Company'] }}",
+              "type": "string"
+            },
+            {
+              "id": "786ad7a8-edc1-498f-bdb0-babc2c4566d1",
+              "name": "summary",
+              "value": "={{ $json.Summary }}",
+              "type": "string"
+            },
+            {
+              "id": "6f04860f-c45f-4490-a4ec-16dea5ce5381",
+              "name": "requested_action",
+              "value": "={{ $json['Requested Action'] }}",
+              "type": "string"
+            },
+            {
+              "id": "f06936f9-15b1-4f82-9050-38701f63eb6f",
+              "name": "deadline",
+              "value": "={{ $json.Deadline }}",
+              "type": "string"
+            },
+            {
+              "id": "f3f0bfc8-2051-4e8e-950d-fc5322e17864",
+              "name": "urgency",
+              "value": "={{ $json.Urgency }}",
+              "type": "string"
+            },
+            {
+              "id": "900a174b-93d9-44d5-850b-3ac93dc104de",
+              "name": "department",
+              "value": "={{ $json.Department }}",
+              "type": "string"
+            },
+            {
+              "id": "27b970bd-5101-4d0b-a059-67fecf02d901",
+              "name": "status",
+              "value": "={{ $json.Status }}",
+              "type": "string"
+            },
+            {
+              "id": "fcb9b27d-8ba5-4c85-9461-a05f1fd89f81",
+              "name": "reviewed_by",
+              "value": "={{ $json['Reviewed By'] }}",
+              "type": "string"
+            },
+            {
+              "id": "90fce275-c805-4970-a0a9-1fa2c4315204",
+              "name": "review_note",
+              "value": "={{ $json['Review Note'] }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        112,
+        0
+      ],
+      "id": "05d6be52-d06c-4b7c-83a0-afa7dd0f5d56",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        336,
+        0
+      ],
+      "id": "2ce784a9-e6f8-4e5b-ba2f-093300a049c5",
+      "name": "Aggregate"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json.data }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        560,
+        0
+      ],
+      "id": "2604f672-d93b-40b3-8a34-2ea296cec506",
+      "name": "Respond to Webhook"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Aggregate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "4e6ee5c0-f077-4edd-b2e7-922170c951a7",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "558cd4414acf9ac99d068f1c2801df0500a48eb2c978e24e1653db67a9150841"
+  },
+  "nodeGroups": [],
+  "id": "XS0RmQ7jyfH6RxEF",
+  "tags": []
+}

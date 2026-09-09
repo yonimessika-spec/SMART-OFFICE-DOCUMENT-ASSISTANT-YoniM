@@ -1,0 +1,1192 @@
+{
+  "name": "Document Assistant - Process Document",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "file_name"
+            },
+            {
+              "name": "file_link"
+            },
+            {
+              "name": "submitted_by"
+            },
+            {
+              "name": "mimeType"
+            }
+          ]
+        }
+      },
+      "id": "e5091ddd-2ed7-4edd-9b16-4cfe5717f425",
+      "name": "When Executed by Another Workflow",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -528,
+        336
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a4a6b52a-13c5-410d-8d7d-6cc36fa7cd94",
+              "name": "document_id",
+              "value": "={{ 'exec-' + $execution.id }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "58fac6c7-5464-42f2-a088-706463ea3029",
+      "name": "Generate Doc ID",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        -304,
+        336
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.mimeType }}",
+                    "rightValue": "application/pdf",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "a6b7a5e2-649e-46aa-b8e3-169826302ad5"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "PDF"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "fd5f3df7-083c-4a61-8ee3-f61ccc85dd83",
+                    "leftValue": "={{ $json.mimeType }}",
+                    "rightValue": "text/plain",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "TXT"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "470d28e8-28fe-4c12-91a5-19348e7d44e3",
+                    "leftValue": "={{ $json.mimeType }}",
+                    "rightValue": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "DOCX"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a1ec750d-2492-462b-8fde-3ec0a0a721c0",
+      "name": "Doc Type Identifier",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        -80,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "pdf",
+        "options": {}
+      },
+      "id": "c2cc739e-962b-4dfe-bc9a-2881f28829aa",
+      "name": "Extract PDF File",
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.1,
+      "position": [
+        1040,
+        64
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "text",
+        "destinationKey": "text",
+        "options": {}
+      },
+      "id": "4fada057-a3a3-42dc-b3f5-15f99eecaf95",
+      "name": "Extract TXT File",
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.1,
+      "position": [
+        1040,
+        256
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleDriveOAuth2Api",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"name\": \"{{ $json.file_name }}\",\n  \"mimeType\": \"application/vnd.google-apps.document\",\n  \"parents\": [\"1qaSSRzKJ_5im7up06ew7H10KvWkL6bKJ\"]\n}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "id": "5f38b63e-df01-4385-9ed2-f85cf5b090a8",
+      "name": "Start Resumable Upload",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        144,
+        432
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "oX0dwyUnbQGlDdRS",
+          "name": "Google Drive YM"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "numberInputs": 3
+      },
+      "id": "94966582-3ca8-47de-8bbd-23268618218d",
+      "name": "Merge",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        1264,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "id": "3dffb1f6-c307-4538-af3d-59ec2ed0b8d9",
+      "name": "Merge1",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        368,
+        512
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "85dea6b8-068c-468d-ad48-bd92892da1f9",
+              "name": "=text",
+              "value": "={{ $json.data }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "ebcf7f1e-698e-443f-9ab4-08980f604ec5",
+      "name": "Shape DOCX Output",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        1040,
+        512
+      ]
+    },
+    {
+      "parameters": {
+        "text": "=Today's date: {{ $now.toFormat('yyyy-MM-dd') }}\n\nDocument content:\n{{ $json.text }}",
+        "attributes": {
+          "attributes": [
+            {
+              "name": "document_type",
+              "description": "Choose exactly one: invoice, request, report, complaint, contract, quote, or other.",
+              "required": true
+            },
+            {
+              "name": "sender_or_company",
+              "description": "Name of the person or organization who sent the document. Use \"Not found\" if absent.",
+              "required": true
+            },
+            {
+              "name": "summary",
+              "description": "Explain the document in no more than three short sentences.",
+              "required": true
+            },
+            {
+              "name": "requested_action",
+              "description": "What the company should do next in response to this document. Use \"No action found\" if the document requires no action.",
+              "required": true
+            },
+            {
+              "name": "deadline",
+              "description": "Any deadline mentioned in the document, returned exactly as written (e.g., \"August 5, 2026\" or \"within 7 days\"). Use \"Not found\" if absent",
+              "required": true
+            },
+            {
+              "name": "urgency",
+              "description": "Exactly one of: Low, Medium, High.",
+              "required": true
+            },
+            {
+              "name": "department",
+              "description": "Which department should handle this. Exactly one of: Sales, Finance, Support, HR, Management, General.",
+              "required": true
+            },
+            {
+              "name": "deadline_iso",
+              "description": "The deadline converted to ISO 8601 date format (YYYY-MM-DD). If the deadline is a specific date like \"August 5, 2026\" convert to \"2026-08-05\". If it's a relative expression like \"within 7 days\" or \"valid for 7 days\", calculate the actual date based on today. Return an empty string if no deadline."
+            }
+          ]
+        },
+        "options": {
+          "systemPromptTemplate": "You are an office assistant that reads business documents (invoices, customer requests, complaints, supplier quotes, contracts, and internal reports) and extracts structured information for logging.\n\nRules:\n- Extract only information that appears in the document. Never invent missing details.\n- When information is missing, use \"Not found\" (or \"No action found\" for the requested_action field).\n- Mark urgency as High only when the document contains an immediate deadline (within 3 days), payment risk, legal or safety risk, or an explicit urgent request.\n- Mark urgency as Medium when there is a deadline but it is not immediate, or when a response is clearly expected.\n- Mark urgency as Low when the document is informational and no action is required.\n- Return the deadline exactly as written in the document (do not reformat dates)."
+        }
+      },
+      "id": "eecd29bb-3d1d-4fe3-a11f-8d562092a6ca",
+      "name": "Information Extractor",
+      "type": "@n8n/n8n-nodes-langchain.informationExtractor",
+      "typeVersion": 1.2,
+      "position": [
+        1488,
+        176
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "gpt-4o-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "id": "149830be-7c60-44a1-838a-d20f1a80f272",
+      "name": "OpenAI Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        1568,
+        400
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "LOGVUDc7msv22Bq8",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1MscivqX0yer39GkAABIyGIUSf3LhPNGFumbbDg84I6M",
+          "mode": "list",
+          "cachedResultName": "Document - Processing Log",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1MscivqX0yer39GkAABIyGIUSf3LhPNGFumbbDg84I6M/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1MscivqX0yer39GkAABIyGIUSf3LhPNGFumbbDg84I6M/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Deadline": "={{ $json.output.deadline }}",
+            "Requested Action": "={{ $json.output.requested_action }}",
+            "Summary": "={{ $json.output.summary }}",
+            "File Link": "={{ $('Generate Doc ID').item.json.file_link }}",
+            "Department": "={{ $json.output.department }}",
+            "Received At": "={{ $now.format('dd/MM/yyyy HH:mm') }}",
+            "Sender or Company": "={{ $json.output.sender_or_company }}",
+            "File Name": "={{ $('Generate Doc ID').item.json.file_name }}",
+            "Status": "Processed",
+            "Document Type": "={{ $json.output.document_type }}",
+            "Urgency": "={{ $json.output.urgency }}",
+            "Document ID": "={{ $('Generate Doc ID').item.json.document_id }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Received At",
+              "displayName": "Received At",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "File Name",
+              "displayName": "File Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "File Link",
+              "displayName": "File Link",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Document Type",
+              "displayName": "Document Type",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Sender or Company",
+              "displayName": "Sender or Company",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Summary",
+              "displayName": "Summary",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Requested Action",
+              "displayName": "Requested Action",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Deadline",
+              "displayName": "Deadline",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Urgency",
+              "displayName": "Urgency",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Department",
+              "displayName": "Department",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Document ID",
+              "displayName": "Document ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Reviewed By",
+              "displayName": "Reviewed By",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Review Note",
+              "displayName": "Review Note",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "ba405b83-f8da-4c14-9358-23170413238a",
+      "name": "Append row in sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1840,
+        0
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "zevJxTjhhLBDEFOp",
+          "name": "Google YoniM"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "43d6867d-13fc-47c4-9a1e-b3ec93bce6f3",
+              "leftValue": "={{ $('Information Extractor').item.json.output.urgency }}",
+              "rightValue": "High",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "08641279-9a45-4f3c-ac35-aa0ff2a16ba7",
+      "name": "If",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        2064,
+        -64
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "yoni.messika@gmail.com",
+        "subject": "=URGENT: {{ $('Information Extractor').item.json.output.document_type }} from {{ $('Information Extractor').item.json.output.sender_or_company }}",
+        "message": "=<p>🚨 <strong>URGENT DOCUMENT PROCESSED</strong></p>\n\n<p>The following document requires immediate attention:</p>\n\n<p>\n<strong>File Name:</strong> {{ $('Generate Doc ID').item.json.file_name }}<br>\n<strong>Sender / Company:</strong> {{ $('Information Extractor').item.json.output.sender_or_company }}<br>\n<strong>Document Type:</strong> {{ $('Information Extractor').item.json.output.document_type }}\n</p>\n\n<p><strong>Summary:</strong> {{ $('Information Extractor').item.json.output.summary }}</p>\n\n<p>\n<strong>Requested Action:</strong> {{ $('Information Extractor').item.json.output.requested_action }}<br>\n<strong>Deadline:</strong> {{ $('Information Extractor').item.json.output.deadline }}<br>\n<strong>Urgency:</strong> {{ $('Information Extractor').item.json.output.urgency }}<br>\n<strong>Department:</strong> {{ $('Information Extractor').item.json.output.department }}\n</p>\n\n<p><strong>Open document:</strong> <a href=\"{{ $('Generate Doc ID').item.json.file_link }}\">View in Google Drive</a></p>\n\n<hr>\n<p style=\"color:#888;font-size:12px;\">Automated notification from the Smart Document Assistant.</p>\n\n",
+        "options": {}
+      },
+      "id": "21d1b04b-3e66-42bf-beba-806ebdfad09b",
+      "name": "Urgent Gmail Alert",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        2288,
+        -128
+      ],
+      "webhookId": "868c211c-c95e-4f1c-8d29-af43de55ef39",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "lKPK3kM4VY7vkZgf",
+          "name": "Gmail GoldenShabbat"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "775134528",
+        "text": "=🚨 <b>URGENT DOCUMENT</b>\n\n<b>From:</b> {{ $('Information Extractor').item.json.output.sender_or_company }}\n<b>Type:</b> {{ $('Information Extractor').item.json.output.document_type }}\n<b>Deadline:</b> {{ $('Information Extractor').item.json.output.deadline }}\n<b>Department:</b> {{ $('Information Extractor').item.json.output.department }}\n\n<b>Action:</b> {{ $('Information Extractor').item.json.output.requested_action }}\n\n<a href=\"{{ $('Generate Doc ID').item.json.file_link }}\">📎 Open document</a>",
+        "additionalFields": {
+          "parse_mode": "HTML"
+        }
+      },
+      "id": "02fd78c1-1d0b-4cce-b2cf-44d446fc6cd1",
+      "name": "Urgent Telegram Notification",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2288,
+        -320
+      ],
+      "webhookId": "9584c738-dcba-4833-bb28-14e9989acbc4",
+      "credentials": {
+        "telegramApi": {
+          "id": "yvppUewCHGOCKzME",
+          "name": "Telegram TheMacroSignal"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "yoni.messika@gmail.com",
+        "subject": "=NOTIFICATION: {{ $('Information Extractor').item.json.output.document_type }} from {{ $('Information Extractor').item.json.output.sender_or_company }}",
+        "message": "=<p><strong>📄 DOCUMENT PROCESSED</strong></p>\n\n<p>A new document has been processed and logged. Details below:</p>\n\n<p>\n<strong>File Name:</strong> {{ $('Generate Doc ID').item.json.file_name }}<br>\n<strong>Sender / Company:</strong> {{ $('Information Extractor').item.json.output.sender_or_company }}<br>\n<strong>Document Type:</strong> {{ $('Information Extractor').item.json.output.document_type }}\n</p>\n\n<p><strong>Summary:</strong> {{ $('Information Extractor').item.json.output.summary }}</p>\n\n<p>\n<strong>Requested Action:</strong> {{ $('Information Extractor').item.json.output.requested_action }}<br>\n<strong>Deadline:</strong> {{ $('Information Extractor').item.json.output.deadline }}<br>\n<strong>Urgency:</strong> {{ $('Information Extractor').item.json.output.urgency }}<br>\n<strong>Department:</strong> {{ $('Information Extractor').item.json.output.department }}\n</p>\n\n<p><strong>Open document:</strong> <a href=\"{{ $('Generate Doc ID').item.json.file_link }}\">View in Google Drive</a></p>\n\n<hr>\n<p style=\"color:#888;font-size:12px;\">Automated notification from the Document Assistant. No urgent action required.</p>",
+        "options": {}
+      },
+      "id": "3020a52e-790b-4584-8ab7-883dd4535343",
+      "name": "Regular Gmail Notification",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        2288,
+        64
+      ],
+      "webhookId": "2be08a59-91dd-4dd7-920f-5123e7860372",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "lKPK3kM4VY7vkZgf",
+          "name": "Gmail GoldenShabbat"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "59085338-8152-4474-8a6c-7a788b22a914",
+              "leftValue": "={{ $json.output.deadline_iso }}",
+              "rightValue": "Not found",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            },
+            {
+              "id": "02bc3818-55f5-497b-a5fc-ab8ed1b003d0",
+              "leftValue": "={{ $json.output.deadline_iso }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "2c06b668-019e-4208-85bf-bb751d8aec48",
+      "name": "If Deadline - Write to Calendar",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        2064,
+        448
+      ]
+    },
+    {
+      "parameters": {
+        "calendar": {
+          "__rl": true,
+          "value": "9feec4ea27a3821db93ca1b08edb32209889c3c3a68a37af5a689e43bcb496bf@group.calendar.google.com",
+          "mode": "list",
+          "cachedResultName": "Doc Assistant Calendar"
+        },
+        "start": "={{ $('Information Extractor').item.json.output.deadline_iso }}T09:00:00",
+        "end": "={{ $('Information Extractor').item.json.output.deadline_iso }}T09:30:00",
+        "additionalFields": {
+          "description": "={{ $('Information Extractor').item.json.output.summary }}\n    \n    Action: {{ $('Information Extractor').item.json.output.requested_action }}\n    \n    Document: {{ $('Generate Doc ID').item.json.file_link }}",
+          "summary": "=Deadline: {{ $('Information Extractor').item.json.output.document_type }} — {{ $('Information Extractor').item.json.output.sender_or_company }}"
+        }
+      },
+      "id": "6cc1677d-0a9b-4602-bc65-172dae0ed085",
+      "name": "Create Deadline Urgent Event ",
+      "type": "n8n-nodes-base.googleCalendar",
+      "typeVersion": 1.3,
+      "position": [
+        2288,
+        352
+      ],
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "NwFsgfz55wC4ooBm",
+          "name": "Google Calendar OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "id": "e873c3a7-8e49-416e-bb56-12025a4ca3b9",
+      "name": "No Operation, do nothing",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        2288,
+        544
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "={{ $json.headers.location }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleDriveOAuth2Api",
+        "sendBody": true,
+        "contentType": "binaryData",
+        "inputDataFieldName": "data",
+        "options": {}
+      },
+      "id": "31e23ca1-6eb3-4a7f-a3fc-40910cc4e58f",
+      "name": "Complete Upload",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        592,
+        512
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "oX0dwyUnbQGlDdRS",
+          "name": "Google Drive YM"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "=https://www.googleapis.com/drive/v3/files/{{ $json.id }}/export?mimeType=text/plain",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleDriveOAuth2Api",
+        "options": {}
+      },
+      "id": "a728c9ed-d37a-43f4-a502-f62d4827eddb",
+      "name": "Export DOCX Text",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        816,
+        512
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "oX0dwyUnbQGlDdRS",
+          "name": "Google Drive YM"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "deleteFile",
+        "fileId": {
+          "__rl": true,
+          "value": "={{ $node[\"Complete Upload\"].json.id }}",
+          "mode": "id"
+        },
+        "options": {}
+      },
+      "id": "42e1af62-87ca-4c64-af08-8b871c5e7acc",
+      "name": "Delete Temps Google Doc",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        1264,
+        560
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "oX0dwyUnbQGlDdRS",
+          "name": "Google Drive YM"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "9f8586dd-bf4a-4664-b15f-05b4ac97e60f",
+              "name": "document_id",
+              "value": "={{ $json[\"Document ID\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "e4f36442-1a64-4dff-ada7-6db9e10d4b22",
+              "name": "received_at",
+              "value": "={{ $json[\"Received At\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "22b9f346-ff01-4ef5-b7ae-ed02bdedd3ec",
+              "name": "file_link",
+              "value": "={{ $json[\"File Link\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "a9cf1abd-e188-47a3-b0dd-82eca8ac941d",
+              "name": "fields",
+              "value": "={   \"document_type\": \"{{ $json['Document Type'] }}\",   \"sender_or_company\": \"{{ $json['Sender or Company'] }}\",   \"summary\": \"{{ $json['Summary'] }}\",   \"requested_action\": \"{{ $json['Requested Action'] }}\",   \"deadline\": \"{{ $json['Deadline'] }}\",   \"urgency\": \"{{ $json['Urgency'] }}\",   \"department\": \"{{ $json['Department'] }}\" }",
+              "type": "object"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        2512,
+        192
+      ],
+      "id": "409c3df2-6677-4b02-b40d-8721846078f1",
+      "name": "Build Response"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "050b373f-a669-4424-bf8d-843f7af7b978",
+              "leftValue": "={{ $json.document_id !== null && $json.document_id !== \"\" }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.3,
+      "position": [
+        2736,
+        192
+      ],
+      "id": "29bce096-441b-4b3b-9207-38554289d350",
+      "name": "Filter"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Generate Doc ID",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Doc ID": {
+      "main": [
+        [
+          {
+            "node": "Doc Type Identifier",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Doc Type Identifier": {
+      "main": [
+        [
+          {
+            "node": "Extract PDF File",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Extract TXT File",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Start Resumable Upload",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Extract PDF File": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract TXT File": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Start Resumable Upload": {
+      "main": [
+        [
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Information Extractor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge1": {
+      "main": [
+        [
+          {
+            "node": "Complete Upload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Shape DOCX Output": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 2
+          },
+          {
+            "node": "Delete Temps Google Doc",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Information Extractor": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "If Deadline - Write to Calendar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Information Extractor",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append row in sheet": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Build Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Urgent Gmail Alert",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Urgent Telegram Notification",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Regular Gmail Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If Deadline - Write to Calendar": {
+      "main": [
+        [
+          {
+            "node": "Create Deadline Urgent Event ",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No Operation, do nothing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Complete Upload": {
+      "main": [
+        [
+          {
+            "node": "Export DOCX Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Export DOCX Text": {
+      "main": [
+        [
+          {
+            "node": "Shape DOCX Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Urgent Telegram Notification": {
+      "main": [
+        [
+          {
+            "node": "Build Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Urgent Gmail Alert": {
+      "main": [
+        [
+          {
+            "node": "Build Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Regular Gmail Notification": {
+      "main": [
+        [
+          {
+            "node": "Build Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Deadline Urgent Event ": {
+      "main": [
+        [
+          {
+            "node": "Build Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "No Operation, do nothing": {
+      "main": [
+        [
+          {
+            "node": "Build Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Response": {
+      "main": [
+        [
+          {
+            "node": "Filter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "timeSavedMode": "fixed",
+    "callerPolicy": "any",
+    "availableInMCP": false,
+    "callerIds": "Gs0nXPxFm5VPFLns"
+  },
+  "versionId": "af4c0335-6dc0-460f-a63f-942dc15ff7a8",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "558cd4414acf9ac99d068f1c2801df0500a48eb2c978e24e1653db67a9150841"
+  },
+  "nodeGroups": [],
+  "id": "FDIWDBWQOdwb41gT",
+  "tags": []
+}
