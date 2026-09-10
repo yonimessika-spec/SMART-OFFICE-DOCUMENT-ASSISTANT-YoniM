@@ -841,3 +841,208 @@ it. Archive becomes "Reviewed" only.
 ### Corrections needed:
 
 (to be filled in by hand after testing)
+
+---
+
+## Entry 11 — Hebrew / RTL support (Part 1) + Hebrew extraction test (Part 2)
+
+**Date:** 2026-09-09
+
+### Prompt (abridged)
+
+> Genuinely support Hebrew, not just an English UI. Two halves:
+> **Part 1 — client:** install react-i18next (+ i18next + browser-languagedetector);
+> extract every user-facing string into `src/locales/en.json` + `he.json`
+> (screens, filters, status labels, buttons, the reopen modal + "type Reopen"
+> flow, errors, empty states — but not API field names); natural professional
+> Hebrew; runtime language toggle, no reload; `dir="rtl"` on the root for Hebrew;
+> audit real RTL correctness (directional icons, badge/card/modal mirroring,
+> search + filter + dropzone, numbers/dates/IDs staying LTR); confirm Hanken
+> Grotesk renders Hebrew or add a Hebrew fallback font; walk the whole app in
+> Hebrew and fix what breaks.
+> **Part 2 — extraction test (report only, cannot edit n8n):** run the 3 Hebrew
+> test files through the REAL /process-document; check reading order, whether
+> the Information Extractor pulls fields from Hebrew, whether the Sheet row is
+> not mojibake, and whether the non-urgent Hebrew invoice is correctly NOT
+> flagged urgent; write a report + the EXACT improved Information-Extractor
+> prompt text to paste into n8n (which node), without changing it yourself.
+> Do not modify `server/.env`.
+
+### Part 1 — files changed (client only)
+
+- **deps:** `i18next`, `react-i18next`, `i18next-browser-languagedetector`.
+- **new:** `src/i18n.js` (config, localStorage detection, syncs
+  `<html dir/lang>` + `document.title` on language change), `src/locales/en.json`,
+  `src/locales/he.json` (101 keys each, verified identical key sets).
+- **`index.html`** — added Heebo (Google Fonts) alongside Hanken Grotesk.
+- **`src/index.css`** — `--font-sans: 'Hanken Grotesk', 'Heebo', …` so Hebrew
+  glyphs (absent from Hanken) fall through to Heebo; English unchanged.
+- **`src/main.jsx`** — imports `./i18n.js`; wraps the tree in radix-ui
+  `Direction.Provider` (fed by `i18n.dir()`) so Select/Dialog follow the UI dir.
+- **`src/App.jsx`** — nav + brand localised; language-toggle button (lucide
+  `Languages` icon) in the header; `ml-auto` → `ms-auto`.
+- **All 4 screens + `DocumentCard`, `ArchiveCard`, `StatusBadge`, `UrgencyBadge`,
+  `FieldList`, `FieldValue`, `SearchField`, `ErrorMessage`, `ReopenDialog`** —
+  every string via `t()`. Status values now display through a `status.*` map
+  (raw value still drives filtering / the API). `messageFor` → resolves
+  `errors.<code>` from the locale (the `ERROR_MESSAGES`/`GENERIC_ERROR` consts
+  and `FIELD_LABELS` moved out of `constants.js` → `FIELD_KEYS`).
+- **RTL specifics:** `SearchField` icon `left-3`→`start-3`, input `pl-9`→`ps-9`;
+  card meta `ml-auto`→`ms-auto`; DocumentDetail back-link `-ml-3`→`-ms-3` and
+  its chevron flips `ChevronLeft`↔`ChevronRight` by `i18n.dir()`; `received_at`,
+  the char counter and file sizes wrapped `dir="ltr"`; file names / summaries /
+  extracted values wrapped `dir="auto"` (fixed "12 March 2026" → "March 2026 12"
+  bidi scramble on the deadline field); the file-format hint became
+  `<span dir="ltr">PDF, DOCX, TXT</span> · {size}` and the Hebrew
+  "unsupported file" copy was rephrased to avoid an acronym pile-up.
+- **shadcn ui patches for RTL:** `ui/select.jsx` item `pr-8 pl-2`→`pe-8 ps-2`,
+  indicator `right-2`→`end-2`; `ui/dialog.jsx` close button `right-4`→`end-4`,
+  header `sm:text-left`→`sm:text-start`; `ui/field.jsx` list `ml-4`→`ms-4`.
+- The **reopen confirm word** is now translatable (`reopen.confirmWord`: "Reopen"
+  / "פתיחה"); the input compares against the localised word (trimmed).
+
+**Verified in the browser (mock data), Hebrew + English, desktop + 375 px:**
+Dashboard (list, filters, dropdown-open checkmark side, empty/no-match, error
+state), DocumentDetail (fields, deadline bidi, status pill, both review actions
++ success message), Upload (idle, reject, processing, F3 result), Archive +
+Reopen modal end-to-end, language toggle with no reload + localStorage persist,
+`<html dir/lang>` flipping, no console warnings, no missing i18n keys.
+Also confirmed against the **real backend** — a real Hebrew `summary` from the
+pipeline renders correctly RTL in a Dashboard card.
+
+### Part 2 — Hebrew extraction findings (test-and-report)
+
+Ran `test-hebrew-invoice.txt`, `test-hebrew-service-request.pdf`,
+`test-hebrew-maintenance.docx` through the live `/process-document` **3× each**
+(+ an English spot-check, `test_doc_7_normal_txt.txt` — no regression). The
+English files the prompt named (`test-invoice.txt` etc.) are not in `test-files/`;
+only the Hebrew trio + the old `test_doc_*` set are.
+
+- **Reading order: fine.** Every Hebrew field, every run, every file type — no
+  reversed or word-scrambled Hebrew. n8n's PDF/DOCX/TXT extractors handle RTL.
+  (Local `pdftotext` *did* fail on the PDF — that was my tool, not n8n.)
+- **Mojibake: none.** All Hebrew stored as clean UTF-8 in the Sheet.
+- **PDF: minor artifact** — collapsed spaces in dense Hebrew lines
+  ("9בספטמבר2026"), inconsistent between runs. Cosmetic.
+- **Summary language: English-biased** — 5 of 8 Hebrew rows got an English
+  summary (prompt has no language rule).
+- **Deadline verbatim: not honoured for the .txt invoice** — "20 בספטמבר 2026"
+  → "September 20, 2026" on all 3 runs.
+- **Urgency false positive: real, intermittent** — the non-urgent Hebrew invoice
+  ("אין דחיפות מיוחדת") was marked **Medium** on 1 of 3 runs (Low on the other
+  2). Cause: "Medium when there is a deadline" + no rule to respect an explicit
+  "not urgent" + `OpenAI Chat Model` at default temperature.
+- **Urgency true positives: reliable** — both genuinely-urgent Hebrew docs → High
+  every run.
+- **Flaky 500 + duplicate rows (biggest issue):** `.txt` and `.pdf` returned
+  `EXTRACTION_FAILED` on ~2 of 3 tries **but still wrote the Sheet row**. The
+  `Create Deadline Urgent Event` (Google Calendar) node runs parallel to
+  `Append row in sheet`, has no error handling, and throws on a malformed
+  `deadline_iso` (Hebrew relative dates make that more likely) — failing the
+  whole request after the row exists → user re-uploads → dup.
+
+Full recommendations + the **exact replacement System Prompt and attribute
+descriptions for the `Information Extractor` node**, plus the calendar /
+temperature config fixes, are in **`n8n-hebrew-fixes.md`** at the repo root.
+Nothing in n8n was changed.
+
+### Corrections needed:
+
+(to be filled in by hand after testing)
+
+---
+
+## Entry 12 — Hebrew extraction re-test after manual n8n fixes (2026-09-09)
+
+Report-only re-test after you applied (in the n8n UI): new System Prompt
+Template, tightened `deadline`/`deadline_iso` descriptions, OpenAI temperature 0,
+`Create Deadline Urgent Event` -> On Error: Continue. Nothing in n8n changed by
+this test. Full report: **`n8n-hebrew-retest.md`**.
+
+- **Hebrew PDF (`test-hebrew-service-request.pdf`): fully fixed.** 3/3 HTTP 200,
+  Hebrew summary + action, verbatim Hebrew deadline, High urgency, correct sender,
+  1 row/upload. Rows: exec-1026, 1057, 1067.
+- **Hebrew DOCX (`test-hebrew-maintenance.docx`): mostly fixed.** 4/4 HTTP 200,
+  verbatim Hebrew deadline, High, correct sender, 1 row/upload. But summary came
+  back **English on 2 of 4 runs** - language rule not yet reliable for the DOCX
+  path (text arrives via Drive export). Rows: exec-1028, 1059, 1063, 1065.
+- **Hebrew TXT (`test-hebrew-invoice.txt`): still broken, different bug.**
+  HTTP 500 `EXTRACTION_FAILED` on **8/8** attempts, **orphan Sheet row every
+  time** (exec-1024, 1033, 1035, 1039, 1041, 1043, 1052, 1055). Extraction is
+  now good (Low urgency, verbatim "20 בספטמבר 2026", sender ok) - the throw is
+  downstream. High-confidence cause: **`Build Response`** builds `fields` as a
+  hand-written JSON string via raw `"{{ }}"` interpolation, and this doc's Hebrew
+  always contains a literal `"` (בע"מ, ש"ח) -> invalid JSON -> Set node throws
+  *after* the row is written. Not TXT-specific - any Hebrew doc with a `"` in an
+  extracted field would fail; PDF/DOCX just happen to have none. Fix: escape /
+  `JSON.stringify` the interpolated values in `Build Response`.
+- **English spot-check (`test_doc_1_invoice.pdf`): no regression.** 2/2 HTTP 200,
+  English extraction intact, sender = issuer not recipient, High (defensible).
+- **`test-files/` = 13 files:** Hebrew trio + `test_doc_1..10`. The named English
+  trio (`test-invoice.txt` etc.) is **not in this repo and never was**. Reconcile
+  by re-adding + committing if you have them.
+- **Sheet: 36 rows, needs pruning again.**
+
+---
+
+## Entry 13 — Hebrew re-test follow-up: root-caused the TXT 500 (2026-09-09)
+
+Report-only. Full paste-ready text in **`n8n-followup-fixes.md`**.
+
+- **The `test-hebrew-invoice.txt` 500 is root-caused and CONFIRMED.** Not
+  Hebrew-specific, not `.txt`-specific: **any** document whose extracted text
+  contains a literal `"` fails. Proven by uploading a plain English `.txt` with
+  `Barnes "Best Value" Office Supplies Ltd` as the sender -> identical HTTP 500 +
+  orphan row (exec-1072). Node: **`Build Response`** (Edit Fields/Set v3.5) in
+  `Doc Assistant - Process Document`, assignment **`fields`** (type Object) -
+  builds JSON by raw string interpolation, so a `"` in `בע"מ`/`ש"ח`/a company
+  name makes invalid JSON -> `JSON.parse` throws -> 500, after `Append row in
+  sheet` already wrote the row. (Confirmed by static trace of the workflow
+  export + the probe; no n8n API access - only the webhook secret.)
+- **Fix (documented, not applied):** replace the `fields` value with an
+  object-literal expression `={{ ({ "document_type": $json["Document Type"], … }) }}`
+  (keep Type = Object). Alt: wrap each value in `JSON.stringify(… ?? "")`.
+- **DOCX English-summary flakiness fix (documented, not applied):** language-prefix
+  the Information Extractor `Text` field with
+  `Document language: {{ /[֐-׿]/.test($json.text) ? 'Hebrew' : 'English' }}`.
+- **Sheet cleanup list** (scoped to exec-1024–exec-1072 only): keep exec-1052
+  (txt), exec-1026 (pdf), exec-1063 (docx), exec-1030 (English pdf); delete the
+  other 17 listed rows. Older rows <= exec-1023 untouched.
+
+---
+
+## Entry 14 — CSV export on Dashboard + Archive (2026-09-10)
+
+Client-only feature. No proxy / n8n / Sheets changes.
+
+**New:** `client/src/utils/csvExport.js` — shared utility. `toCsv(rows, columns)`
+(pure, returns text with a `\uFEFF` BOM, CRLF, RFC-4180 quote-escaping),
+`toCsvBlob`, `downloadCsv(filename, rows, columns)` (object URL -> temp `<a>` ->
+revoke), `exportDateStamp()`, and `DOCUMENT_CSV_COLUMNS` (the 12-column spec:
+Document ID, File Name, Document Type, Department, Urgency, Deadline, Status,
+Reviewed By, Review Note, Submitted By, Received At, Summary — no row_number /
+deadline_iso / File Link).
+
+**Changed:**
+- `client/src/screens/Dashboard.jsx` — "Export CSV" button, top-right of the
+  header (mirrors DocumentCard's `flex items-start justify-between`). Exports
+  `visible` (filters + search + status filter + sort already applied). Disabled
+  when `visible.length === 0`. Filename `documents-export-YYYY-MM-DD.csv`.
+- `client/src/screens/Archive.jsx` — "Export CSV — Archive" button, same
+  placement. Exports `visible` (search applied; status always Reviewed).
+  Disabled when empty. Filename `archive-export-YYYY-MM-DD.csv`.
+- `client/src/locales/en.json` + `he.json` — `common.exportCsv`
+  ("Export CSV" / "ייצוא CSV"), `archive.exportCsv`
+  ("Export CSV — Archive" / "ייצוא CSV — ארכיון"). 103 keys each, parity checked.
+
+**Decisions / notes:**
+- Cell values are the canonical row values (not localised) — Status exports as
+  `Processed`/`Needs Review`/`Reviewed`, not `מעובד/...`. Headers stay English.
+  Keeps the file stable for sorting/pivoting regardless of UI language.
+- `Submitted By` column is always empty: GET /documents (CONTRACT.md §4) does not
+  return `submitted_by`. Column kept for the requested order; will populate if
+  the backend ever adds the field.
+- Verified in-browser (EN + HE/RTL, both screens): BOM bytes `EF BB BF`,
+  CRLF-only, exact 12-col header, row count == visible count, filter-respecting,
+  disabled at 0 rows, Hebrew round-trips, embedded `"` doubled, embedded comma
+  quoted. `npm run build` passes.
