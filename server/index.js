@@ -24,6 +24,7 @@ import {
   COOKIE_NAME,
   signSession,
   sessionCookieOptions,
+  clearCookieOptions,
   authRequired,
   requireRole,
 } from './auth.js'
@@ -109,7 +110,7 @@ app.post('/auth/login', jsonBody, async (req, res) => {
 
 // POST /auth/logout  ->  200 { ok: true }  (clears cookie)
 app.post('/auth/logout', (_req, res) => {
-  res.clearCookie(COOKIE_NAME, sessionCookieOptions())
+  res.clearCookie(COOKIE_NAME, clearCookieOptions())
   return res.json({ ok: true })
 })
 

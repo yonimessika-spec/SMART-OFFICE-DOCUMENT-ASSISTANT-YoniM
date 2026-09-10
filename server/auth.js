@@ -14,17 +14,30 @@ const SESSION_HOURS = 8
 
 export const COOKIE_NAME = 'so_session'
 
-// Cookie flags. `secure` (HTTPS-only) is on only in production, so local http
-// dev still works; sameSite 'lax' is enough here because the only state-changing
-// requests are same-site XHR from our own client origin.
-export function sessionCookieOptions() {
+// Cookie attributes that must match between setting and clearing the cookie for
+// the browser to treat them as the same cookie. `secure` (HTTPS-only) is on only
+// in production so local http dev still works; sameSite 'lax' is enough here
+// because the only state-changing requests are same-site XHR from our own client
+// origin.
+function baseCookieOptions() {
   return {
     httpOnly: true,
     secure: NODE_ENV === 'production',
     sameSite: 'lax',
     path: '/',
-    maxAge: SESSION_HOURS * 60 * 60 * 1000,
   }
+}
+
+// For res.cookie() — adds the 8h lifetime.
+export function sessionCookieOptions() {
+  return { ...baseCookieOptions(), maxAge: SESSION_HOURS * 60 * 60 * 1000 }
+}
+
+// For res.clearCookie() — same attributes, but NO maxAge/expires: passing those
+// to clearCookie is deprecated (ignored in Express 5), and clearCookie sets its
+// own past expiry anyway.
+export function clearCookieOptions() {
+  return baseCookieOptions()
 }
 
 export function signSession(user) {
@@ -36,7 +49,7 @@ export function signSession(user) {
 }
 
 function unauthenticated(res, message) {
-  res.clearCookie(COOKIE_NAME, sessionCookieOptions())
+  res.clearCookie(COOKIE_NAME, clearCookieOptions())
   return res.status(401).json({ error_code: 'UNAUTHENTICATED', error: message })
 }
 
