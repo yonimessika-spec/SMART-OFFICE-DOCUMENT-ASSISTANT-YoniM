@@ -8,16 +8,16 @@ Part 1 (the original n8n automation) is documented separately; this README cover
 
 | # | Feature | Notes |
 |---|---|---|
-| F1 | **Upload** | File picker + drag-and-drop; only PDF/DOCX/TXT; oversized files rejected in the browser before any request |
-| F2 | **Processing state** | Unmistakable in-progress state, Send disabled for the duration, safe up to ~90 s |
-| F3 | **Result view** | All seven extracted fields + file link + coloured urgency badge (label always shown, never colour-only); `"Not found"` / `"No action found"` rendered as literal text |
+| F1 | **Upload** | File picker + drag-and-drop, one file or several at once (up to 10); only PDF/DOCX/TXT; oversized/wrong-type files rejected in the browser before any request |
+| F2 | **Processing state** | Unmistakable in-progress state; a batch processes one file at a time, each safe up to ~90 s |
+| F3 | **Result view** | All seven extracted fields + file link + coloured urgency badge (label always shown, never colour-only); `"Not found"` / `"No action found"` rendered as literal text. For a batch, each finished file is an expandable row showing the same detail |
 | F4 | **Dashboard** | Every document from the backend, newest first |
 | F5 | **Search & filters** | Free-text over file name / sender / summary; combinable filters for urgency, type, department, status; clear "no results" state |
 | F6 | **Detail view + review** | Every field; mark Reviewed / flag Needs Review with an optional note (≤200 chars); local state updates on success |
 | F7 | **Error & empty states** | Every failure becomes a plain-language sentence; handles timeout, 4xx/5xx, unreachable server, empty list |
 | F8 | **Config / secrets** | All URLs and secrets in `server/.env` (git-ignored); `server/.env.example` committed with placeholders; `client/.env` never holds a secret |
 
-On top of the F1–F8 baseline this build also adds **login + role-based access control**, **Hebrew / RTL support**, and **CSV export** — each described below.
+On top of the F1–F8 baseline this build also adds **login + role-based access control**, **Hebrew / RTL support**, **CSV export**, and **multi-file upload** — each described below.
 
 ## Architecture
 
@@ -164,6 +164,28 @@ The Dashboard and the Archive each have an **Export CSV** button (labelled "Expo
 
 `sample-documents-export.csv` at the repo root is an example of the output.
 
+## Multi-file upload
+
+The Upload screen takes one file or a whole batch — multi-select in the picker, or
+drop several files onto the drop zone at once.
+
+- **Up to 10 files per batch.** Selecting or dropping more rejects the whole
+  selection with a message (nothing is silently kept or dropped).
+- **Sequential, not parallel.** Files upload one at a time through the same
+  `POST /process-document` pipeline a single file uses — the proxy and n8n are
+  unchanged. The next file starts only after the current one finishes.
+- **A per-file list.** Every file is a row with its own state — Queued →
+  Processing → Done / Failed / Invalid. An invalid file (wrong type / too large)
+  is flagged in the list immediately, never sent, and doesn't hold up the rest.
+- **Per-file retry.** A failed file gets its own Retry button that re-runs only
+  that file; already-succeeded rows are untouched, and one failure never cancels
+  the rest of the batch.
+- **Result detail is kept.** A finished row expands to the full F3 result (seven
+  fields, urgency badge, file link) plus a link to the document's detail view.
+
+A single upload is just a batch of one, so there is one code path for both. Same
+role gating as before — Admin and Submitter only.
+
 ## n8n workflows
 
 Exported workflow JSON, credentials removed (see `/workflows`):
@@ -177,6 +199,24 @@ Exported workflow JSON, credentials removed (see `/workflows`):
 
 Editing these files does **not** change the live n8n instance — they are reference exports. The Hebrew-extraction findings and the exact n8n changes applied are in `n8n-hebrew-fixes.md`, `n8n-hebrew-retest.md`, and `n8n-followup-fixes.md`.
 
+### Workflow robustness
+
+Real multi-file and empty-Sheet testing surfaced two node-level edge cases that
+single-item happy-path testing never hits. Both were fixed directly in the n8n UI
+and are live; the class of problem is an n8n node that fails (or emits nothing)
+silently taking the rest of the execution chain down with it.
+
+- **`Process Document` — Telegram error-cascade.** `Urgent Telegram Notification`
+  occasionally threw "Bad request"; with no error handling it failed the whole
+  execution *after* the Sheet row was already written, so a client retry produced
+  a duplicate row. Fixed with **On Error → Continue** (same pattern as the
+  earlier Calendar-node fix).
+- **`Get Documents` — zero-row halt.** With an empty Sheet, `Get row(s) in sheet`
+  emitted zero items and n8n skipped everything downstream, including
+  `Respond to Webhook` — the execution still showed "Succeeded" but the client
+  got an empty body and the Dashboard reported "not valid JSON". Fixed with
+  **Always Output Data** (same setting already used on Workflow C's row lookup).
+
 ## Known limitations
 
 - **`received_at` is not an ISO datetime.** CONTRACT.md's example shows ISO format, but this implementation stores Google Sheets' own locale-formatted string instead and treats it as an opaque display value on the client — it is never parsed with `new Date()`. This is a deliberate, documented deviation from the example, not a bug.
@@ -184,4 +224,4 @@ Editing these files does **not** change the live n8n instance — they are refer
 - **Single proxy instance assumed.** The user store is a local JSON file, not safe for multiple proxy processes writing at once.
 - Single shared Header Auth secret across all three n8n webhooks, rather than per-endpoint credentials.
 - No background polling — the client reflects n8n's state only on page load / refresh, not live.
-- Still out of scope for this submission: background job polling, an analytics view, multi-file upload, public deployment, and a daily-summary *screen* (the daily email summary runs as a Part 1 n8n workflow, not in the app).
+- Still out of scope for this submission: background job polling, an analytics view, public deployment, and a daily-summary *screen* (the daily email summary runs as a Part 1 n8n workflow, not in the app).

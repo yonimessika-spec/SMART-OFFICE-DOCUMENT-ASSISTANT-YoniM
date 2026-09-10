@@ -1224,3 +1224,98 @@ it simple; add anything worth flagging to Known limitations.
 - Architecture diagram change was deliberately minimal per "keep it simple".
 - Four untracked `Evidence/Screenshots/` PNGs (Admin user views, EN + HE)
   appeared during review — not part of this pass, left untracked.
+
+---
+
+## Entry 18 — Multi-file upload (2026-09-10)
+
+**Prompt:** Add multi-file upload to the Upload screen — multi-select + drag-drop
+of several files at once, uploaded sequentially, with a per-file progress list.
+Cap 10 per batch (reject the excess with a clear message — keep-first-10 or
+reject-whole was my call). Existing per-file validation (PDF/DOCX/TXT, size) still
+applies to each file; an invalid file shows as immediately failed in the list and
+does not block the others. Sequential: one file at a time, next starts only after
+the current finishes (success or failure). Per-file rows: Queued -> Processing ->
+Success / Failed / Invalid, never one overall bar; a success row keeps the F3
+result detail (7 fields + urgency badge + file link) via link/expand. Each failed
+row gets its own Retry (only that file, doesn't disturb succeeded rows); a failure
+never blocks the rest of the queue. Role gating unchanged (Admin/Submitter only,
+Viewer can't reach it). EN + HE strings, verify the per-file list in RTL. Test a
+3–5 file success batch, an invalid-in-batch, a server failure + retry, 11-file
+cap, Hebrew/RTL, Viewer redirect. Client-only — proxy/n8n already do one file per
+request. Own single commit.
+
+**What was built:** commit `c5c37cd`. Full detail in **`multi-file-upload.md`**.
+
+- `client/src/screens/Upload.jsx` rewritten around a queue: `items: [{ id, file,
+  status, error?, result? }]` (`invalid | queued | processing | success |
+  failed`) driven by one `useEffect` runner that takes the first `queued`,
+  uploads it via the **existing** `processDocument()`, records the outcome, then
+  re-runs for the next. A `runningRef` guards a parallel start + React 18
+  StrictMode's double effect invoke. Single upload is now just a batch of one —
+  the old single-file "big result card" is gone.
+- `client/src/components/UploadItem.jsx` (new) — one queue row: status icon,
+  filename, size, state label, Retry (failed) / Remove (queued|invalid). A
+  `success` row is an `aria-expanded` disclosure -> `FieldList` + file link +
+  `/document/:id` link, so the F3 detail survives.
+- `client/src/constants.js` — `MAX_BATCH_FILES = 10` (UI guard, not env).
+- Over-limit **rejects the whole selection** ("Select at most 10 files at once.
+  Nothing was added — remove some first.") — no ambiguity over which 10 survived.
+  Invalid files become `invalid` rows shown inline (never silently dropped),
+  skipped by the runner. Retry re-queues only that row; the batch auto-continues
+  past a failure.
+- i18n: `upload.*` reworked in both locales, dead single-file keys removed (141
+  keys each, parity checked).
+
+**Decisions / notes:**
+- **i18n plural bug found + fixed.** The "Send N" button first used i18next
+  plural keys `sendCount_one` / `sendCount_other`. Hebrew `count: 2` is CLDR
+  category **`two`**; with no `sendCount_two` key i18next dropped through
+  `fallbackLng` to `en.sendCount_other`, so the Hebrew UI showed "Send 2 files".
+  Replaced with two plain keys (`upload.sendOne` / `upload.sendMany`) chosen in
+  JS (`count === 1 ? … : …`) — no CLDR categories, identical in both languages.
+  (The pre-existing `common.count_*` keys have the same latent issue, only
+  visible at exactly 2 / 10 / … documents.)
+- **RTL:** status icon at the inline-start, Retry/Remove at the inline-end,
+  reason/error line `ps-7` so it indents from the correct side, rotating
+  `ChevronDown` for the disclosure (no direction to flip). Verified in Hebrew for
+  every row state + an expanded result.
+- **Test results (§7), against a real n8n backend on an isolated proxy —
+  `server/.env` never touched:** 3 mixed-type files sequential (Queued ->
+  Processing -> Done one at a time, header "N of M processed"); an invalid
+  `archive.zip` in the batch showed Invalid immediately, no request, others
+  proceeded; a mid-queue failure (simulated `EXTRACTION_FAILED`) — failed row got
+  its reason + Retry and **the next file still processed automatically**; Retry
+  re-ran only that row, siblings untouched, succeeded once the fault was cleared;
+  11 files -> nothing added + message, exactly 10 accepted, 10+1 rejected;
+  Hebrew/RTL full batch list with all five states + an expanded result; Viewer
+  `/upload` still redirects to `/` and the nav item stays hidden. `npm run build`
+  passes.
+
+---
+
+## Entry 19 — Two n8n workflow fixes found during multi-file testing (2026-09-10)
+
+Report-only. Both fixes were found during hands-on multi-file upload testing and
+applied **directly in the n8n UI** (not via Claude Code). They are already live —
+nothing to change in the repo, this entry just records what was found and fixed.
+
+- **`Doc Assistant - Process Document` — Telegram node error-cascade.** The
+  `Urgent Telegram Notification` node was intermittently throwing
+  "Bad request — please check your parameters". With no error handling on it, one
+  failed Telegram send made the **whole execution report as Error** even though
+  `Append row in sheet` had already run — so the client saw a failure, retried,
+  and got an **orphan / duplicate Sheet row**. Fixed: **On Error -> Continue** on
+  that node (same pattern as the earlier `Create Deadline Urgent Event` calendar
+  fix in `n8n-hebrew-fixes.md §3.1`).
+- **`Document Assistant - Get Documents` — zero-row halt.** When the Sheet had no
+  data rows (fresh or freshly cleared), `Get row(s) in sheet` emitted zero items,
+  and n8n **skips every downstream node — including `Respond to Webhook` — when a
+  node gets zero input**. The execution still showed "Succeeded" (misleading),
+  but the client got an empty/invalid body and the Dashboard/Archive showed a
+  "not valid JSON" error. Fixed: **Always Output Data** on that node (same
+  setting already used on Workflow C's `Find Document Row`).
+
+Both are the same class of bug — an n8n node that fails or emits nothing silently
+kills the rest of the chain. Real multi-file / empty-Sheet testing surfaced edge
+cases that single-item happy-path testing never hits.
