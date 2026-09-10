@@ -3,3 +3,6 @@
 **/dist/
 .claude/
 .agents/
+
+# Screen recordings are too large for git — keep them out of the repo.
+Evidence/Screenshots/*.mp4
