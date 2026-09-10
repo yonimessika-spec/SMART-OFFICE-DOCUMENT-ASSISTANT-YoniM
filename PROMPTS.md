@@ -1046,3 +1046,181 @@ deadline_iso / File Link).
   CRLF-only, exact 12-col header, row count == visible count, filter-respecting,
   disabled at 0 rows, Hebrew round-trips, embedded `"` doubled, embedded comma
   quoted. `npm run build` passes.
+
+---
+
+## Entry 15 — Login + role-based access control (Section 15) (2026-09-10)
+
+**Prompt:** Add login + RBAC to the client + proxy. Username/password, bcrypt
+hashes (never store/log/return plaintext), one Admin seeded from `server/.env`
+on first run. Three roles — Admin (all + user management), Submitter (all
+document actions), Viewer (read-only). JWT in an httpOnly cookie (not the body,
+not localStorage), 8h expiry, proxy re-checks auth + role on every request so an
+Admin's role change lands on the user's next request without a forced logout.
+Gate routes/UI client-side AND server-side (direct API call by a disallowed role
+-> clear 403). Admin user-management screen. EN/HE i18n incl. the login screen,
+RTL verified there too. Test against real behaviour, not just eyeballing. Pick
+the user store and explain the tradeoff. Build as its own commit, after
+committing the pre-existing uncommitted Part 1 i18n/RTL layer separately.
+
+**What was built:**
+- **Storage:** local `server/users.json` (git-ignored) — `{ users: [{ id,
+  username, passwordHash, role, createdAt }] }`, atomic temp-write + rename,
+  in-process write serialization. Chosen over Google Sheets (the proxy has no
+  Google credentials — n8n owns that integration; adding them here just for a
+  user table roughly doubles the auth surface + adds per-login latency) and over
+  SQLite (native build + migrations, overkill for a handful of users).
+- `server/users.js` — the store, `bcryptjs` (cost 10), input validation,
+  `publicUser()` (the only shape that leaves the module — no `passwordHash`
+  ever), first-boot seed, self-guards.
+- `server/auth.js` — `signSession` (8h JWT), `authRequired` (verify cookie ->
+  **re-load the user from the store** so the role is always fresh),
+  `requireRole(...)` -> 403 `{ error_code: "FORBIDDEN" }`.
+- `server/index.js` — `POST /auth/login` (sets `so_session` httpOnly SameSite=Lax
+  cookie, `Secure` in production; returns `{ user }` only, never a token),
+  `POST /auth/logout`, `GET /auth/me`, and Admin-only `GET/POST /auth/users` +
+  `PATCH/DELETE /auth/users/:id`. Proxy gates: `/api/documents` any signed-in
+  role; `/api/process` + `/api/review` need Admin|Submitter. The three
+  near-identical n8n handlers were folded into one `forwardToN8n()` helper. CORS
+  is now `cors({ origin: CLIENT_ORIGIN, credentials: true })` — a credentialed
+  cookie forbids `*`.
+- **Client:** `src/auth/AuthContext.jsx` (`{ user, loading, login, logout }`,
+  probes `/auth/me` on mount and re-syncs on every navigation),
+  `src/auth/permissions.js` (`can(role, action)`), `src/api/auth.js`,
+  `src/api/session.js` (a 1-function bridge so a 401 from the fetch layer clears
+  the user), `screens/Login.jsx`, `screens/Users.jsx`. `App.jsx`: loading ->
+  spinner, no user -> `<Login/>`, user -> role-gated nav + routes + a header chip
+  (`username . role`) + Sign out. `main.jsx`: `<AuthProvider>` inside the Router,
+  `<DocumentsProvider>` moved into App's authenticated subtree so it never fires
+  an anonymous request. Viewer -> no Upload nav / Review card / Reopen button;
+  Submitter -> no Users nav; disallowed routes redirect to `/`. `submitted_by` /
+  `reviewed_by` now carry the signed-in username instead of `"app-user"`.
+- New server env (added to `server/.env.example` only — Yoni adds the real
+  values himself): `JWT_SECRET`, `SEED_ADMIN_USERNAME`, `SEED_ADMIN_PASSWORD`,
+  `CLIENT_ORIGIN`, `NODE_ENV`. New deps: `bcryptjs`, `jsonwebtoken`,
+  `cookie-parser`.
+- EN + HE locale keys added: `auth.*`, `users.*`, `nav.users`, `errors.FORBIDDEN`
+  / `errors.UNAUTHENTICATED` (132 keys each, parity checked). Role display labels
+  are localised; the role *values* are not (same rule as status/urgency).
+- `auth-and-roles.md` at the repo root — build notes with the "why" behind each
+  choice.
+
+**Decisions / notes:**
+- **Session mechanism:** the role in the JWT is ignored for authorization —
+  `authRequired` re-reads the user from the store on every request, so an Admin
+  changing someone's role takes effect on that user's very next request, no
+  re-login. A deleted user's still-valid token stops working immediately.
+- **Self-guards, all explicit:** can't change your own role — **self-demotion is
+  blocked outright** (consistent with can't-delete-self and can't-remove-last-
+  Admin, and keeps "Admin is managed outside the UI" uniform); can't delete your
+  own account; can't remove the last Admin; can't grant or change an Admin role
+  from the UI (seed- or `users.json`-only). Your own row in the Users screen
+  shows a `(you)` marker with no role dropdown and no Remove button. Through the
+  UI a role only moves Submitter <-> Viewer.
+- CSV export stays available to Viewers — it only exports data they can already
+  see.
+- The pre-existing uncommitted Part 1 i18n/RTL layer was committed first on its
+  own (`ed12e86`) before this feature, per the earlier "i18n first, then the
+  feature" decision.
+- **Testing (the acceptance checklist):** throwaway `server/_rbac_test.mjs` —
+  **43/43** API assertions: login ok / wrong password / unknown user;
+  token-not-in-body; HttpOnly + 8h Max-Age; every proxy route 401 for anon;
+  per-role 403 on direct calls (Viewer on writes + admin routes, Submitter on
+  admin routes); expired / garbage / wrong-signature token -> 401 + cookie
+  cleared; add/remove user, 409 duplicate, 400 short password, 400 role=Admin;
+  every self-guard; **mid-session demotion -> the same session's next
+  `/api/review` is 403 and `/auth/me` reports the new role, no re-login**;
+  logout invalidates. Browser walk-through: all three roles' nav / route /
+  control gating in EN and HE/RTL; a dynamic demotion reflected on the next
+  navigation; the Hebrew user-management screen end-to-end (add -> change role ->
+  remove, each with its Hebrew toast). The test proxy ran with
+  `--env-file .env --env-file <scratchpad>/auth.env` (multiple `--env-file`
+  flags merge) — `server/.env` was never touched. Test script and the test
+  `server/users.json` were deleted afterwards so the first real run re-seeds
+  cleanly.
+- Commit `15a7e5d`. Follow-up `a4b53f2` fixed a `res.clearCookie` deprecation
+  warning surfaced in the test server log: split the cookie options —
+  `sessionCookieOptions()` keeps `maxAge` for `res.cookie()`, new
+  `clearCookieOptions()` omits it for `res.clearCookie()` (deprecated on Express
+  4, ignored on Express 5).
+
+---
+
+## Entry 16 — Two-tier app header (2026-09-10)
+
+**Prompt:** Restructure the single crowded header row into two tiers — a top
+utility row (smaller/muted: username + role, language toggle, Sign out;
+right-aligned in LTR, mirrors to left in RTL following the pattern used
+elsewhere) and a main nav row below (Smart Office wordmark + Dashboard / Archive
+/ Upload / Users, Users still Admin-only). Apply across every screen that shows
+the header. Verify EN/LTR, HE/RTL (the main reason — currently very tight on one
+line), that active-nav highlighting still works in the main row, and no layout
+break on the Users screen (busiest header today). Cosmetic only — header
+component + CSS, no auth/routing/backend changes. Own commit.
+
+**What was built:**
+- `client/src/App.jsx` only. The `<header>` renders once for all authenticated
+  routes, so one change covers Dashboard, Archive, Upload, Users and
+  DocumentDetail.
+- Tier 1: full-width `border-b border-border/60`, `text-xs`, `size="xs"` ghost
+  buttons. The cluster is `ms-auto flex flex-wrap items-center justify-end` — it
+  parks at the inline-end (right in LTR, left in RTL) and wraps gracefully. The
+  role is now a small `rounded-full bg-muted` pill beside the username (was
+  plain "· Admin" text that was hidden on mobile — now always shown, in its own
+  row).
+- Tier 2: wordmark + `<nav>`, both `flex-wrap`, `max-w-4xl`. The `navLink`
+  active-highlight function is unchanged.
+- No CSS file — Tailwind utilities inline, consistent with the rest of the app.
+  No new env vars.
+
+**Decisions / notes:**
+- RTL handled with logical `ms-auto` + `justify-end`, the same pattern used
+  across the app — a real mirror, not just a flip.
+- Both tiers are `max-w-4xl` and wrap independently, so nothing collides at
+  375px.
+- Verified: EN/LTR + HE/RTL at desktop and 375px; active highlight on the nav
+  row (Dashboard and Users); Users screen has room in both languages; Submitter
+  (no Users) and Viewer (no Upload/Users) navs unchanged. `npm run build` passes.
+- Commit `cb1ba75`.
+
+---
+
+## Entry 17 — README documentation pass (2026-09-10)
+
+**Prompt:** After login/roles is built and verified, do a single focused README
+pass as its own commit (after the feature + header commits): add an
+"Authentication & roles" section; backfill CSV export and Hebrew/RTL (both built
+after the README was drafted, undocumented); audit the app against SPEC.md's 8
+features for anything else missing and report findings before writing them in;
+update the architecture diagram only if the auth step is worth reflecting, keep
+it simple; add anything worth flagging to Known limitations.
+
+**What was built:** `README.md` only — commit `229f6da`.
+- **Audit reported first, all flagged items approved.** Findings: README claimed
+  "No authentication/roles layer" (false now); listed login/roles + CSV +
+  Hebrew/RTL as "out of scope" (all three built); the six n8n workflow filenames
+  were stale (renamed to `Project Part 1/2 -` in `1698e56`); the Dashboard <->
+  Archive status routing + Reopen and the three per-endpoint mock flags were
+  undocumented; the README had no feature list at all.
+- New sections: **Features** (F1–F8 table), **Authentication & roles** (roles
+  table, login / httpOnly-cookie / 8h-session flow, the first-Admin seed + new
+  env vars + deps, the `users.json` store), **Documents: Dashboard, Archive &
+  Reopen** (which `status` goes where; what Reopen does), **Hebrew & RTL
+  support** (toggle, what's translated, RTL behaviour, and that *document
+  extraction* — not just the UI — handles Hebrew), **CSV export** (visible rows
+  only, the column set, the UTF-8 BOM for Excel).
+- Fixes: architecture blurb + diagram note the proxy's auth check (kept minimal
+  — one line, prose carries the rest); the proxy-routes table gains a "who can
+  call it" column and the auth routes; Setup lists the new env vars + deps and
+  that the app now opens on a login screen; the mock-mode paragraph spells out
+  the three `VITE_USE_MOCK_*` switches; workflow filenames corrected. **Known
+  limitations** rewritten for the auth model (no password reset, no
+  self-registration, fixed 8h session, single-instance user store, no login
+  rate-limiting); the "no auth" and "out of scope" bullets removed.
+
+**Decisions / notes:**
+- README kept setup-focused in tone; the Features table is a compact reference,
+  not a walkthrough.
+- Architecture diagram change was deliberately minimal per "keep it simple".
+- Four untracked `Evidence/Screenshots/` PNGs (Admin user views, EN + HE)
+  appeared during review — not part of this pass, left untracked.
