@@ -5,6 +5,8 @@ import { cn } from 'cn'
 import { ChevronLeft, ChevronRight, CircleCheck } from 'lucide-react'
 import { reviewDocument } from '../api/index.js'
 import { useDocuments } from '../store.jsx'
+import { useAuth } from '../auth/AuthContext.jsx'
+import { can } from '../auth/permissions.js'
 import { buttonVariants, Button } from '@/components/ui/button'
 import { Spinner } from '@/components/ui/spinner'
 import {
@@ -35,6 +37,8 @@ const NOTE_MAX = 200
 export default function DocumentDetail() {
   const { t, i18n } = useTranslation()
   const { id } = useParams()
+  const { user } = useAuth()
+  const canReview = can(user?.role, 'review')
   const { documents, loading, applyReview } = useDocuments()
   const doc = useMemo(
     () => documents.find((d) => (d.document_id || d.file_name) === id),
@@ -79,7 +83,7 @@ export default function DocumentDetail() {
       const payload = {
         document_id: doc.document_id,
         status,
-        reviewed_by: 'app-user',
+        reviewed_by: user?.username || 'app-user',
         review_note: note.slice(0, NOTE_MAX),
       }
       const res = await reviewDocument(payload)
@@ -154,6 +158,9 @@ export default function DocumentDetail() {
         </CardContent>
       </Card>
 
+      {/* Review actions — Admin + Submitter only. Viewers get a read-only page;
+          the proxy also rejects /api/review for a Viewer role (defence in depth). */}
+      {canReview && (
       <Card>
         <CardHeader>
           <CardTitle className="text-base">{t('detail.reviewTitle')}</CardTitle>
@@ -212,6 +219,7 @@ export default function DocumentDetail() {
           </form>
         </CardContent>
       </Card>
+      )}
     </section>
   )
 }

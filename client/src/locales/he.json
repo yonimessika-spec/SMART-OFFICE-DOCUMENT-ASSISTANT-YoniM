@@ -7,12 +7,43 @@
     "dashboard": "לוח בקרה",
     "archive": "ארכיון",
     "upload": "העלאה",
+    "users": "משתמשים",
     "mockPrefix": "מדומה:"
   },
   "lang": {
     "ariaLabel": "שינוי שפה",
     "en": "English",
     "he": "עברית"
+  },
+  "auth": {
+    "title": "כניסה",
+    "subtitle": "התחברו לעוזר המסמכים של המשרד החכם.",
+    "username": "שם משתמש",
+    "password": "סיסמה",
+    "signIn": "כניסה",
+    "signingIn": "מתחבר…",
+    "signOut": "יציאה",
+    "badCredentials": "שם המשתמש והסיסמה אינם תואמים."
+  },
+  "users": {
+    "title": "משתמשים",
+    "subtitle": "הוספה והסרה של משתמשים והגדרת ההרשאות של כל אחד.",
+    "addTitle": "הוספת משתמש",
+    "listTitle": "כל המשתמשים",
+    "username": "שם משתמש",
+    "tempPassword": "סיסמה זמנית",
+    "tempPasswordHint": "לפחות 8 תווים",
+    "role": "תפקיד",
+    "addButton": "הוספת משתמש",
+    "remove": "הסרה",
+    "confirmRemove": "הסרה",
+    "you": "(אתם)",
+    "added": "המשתמש “{{username}}” נוסף.",
+    "removed": "המשתמש “{{username}}” הוסר.",
+    "roleChanged": "{{username}} מוגדר כעת כ־{{role}}.",
+    "role_Admin": "מנהל",
+    "role_Submitter": "מגיש",
+    "role_Viewer": "צופה"
   },
   "common": {
     "loading": "טוען…",
@@ -126,6 +157,8 @@
   "errors": {
     "generic": "משהו השתבש והבקשה לא הושלמה. נסו שוב.",
     "notFoundOnServer": "המסמך לא נמצא בשרת.",
+    "FORBIDDEN": "התפקיד שלכם אינו מתיר פעולה זו.",
+    "UNAUTHENTICATED": "ההתחברות הסתיימה. יש להתחבר מחדש.",
     "UNSUPPORTED_FILE_TYPE": "ניתן לעבד רק קבצי PDF, מסמכי Word וקבצי טקסט.",
     "EMPTY_DOCUMENT": "לא נמצא טקסט קריא — נסו קובץ אחר.",
     "EXTRACTION_FAILED": "לא ניתן היה לקרוא את המסמך. אפשר לנסות שוב.",

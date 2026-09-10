@@ -7,12 +7,43 @@
     "dashboard": "Dashboard",
     "archive": "Archive",
     "upload": "Upload",
+    "users": "Users",
     "mockPrefix": "Mock:"
   },
   "lang": {
     "ariaLabel": "Change language",
     "en": "English",
     "he": "עברית"
+  },
+  "auth": {
+    "title": "Sign in",
+    "subtitle": "Sign in to the Smart Office Document Assistant.",
+    "username": "Username",
+    "password": "Password",
+    "signIn": "Sign in",
+    "signingIn": "Signing in…",
+    "signOut": "Sign out",
+    "badCredentials": "That username and password do not match."
+  },
+  "users": {
+    "title": "Users",
+    "subtitle": "Add or remove users and set what each one can do.",
+    "addTitle": "Add a user",
+    "listTitle": "All users",
+    "username": "Username",
+    "tempPassword": "Temporary password",
+    "tempPasswordHint": "At least 8 characters",
+    "role": "Role",
+    "addButton": "Add user",
+    "remove": "Remove",
+    "confirmRemove": "Remove",
+    "you": "(you)",
+    "added": "User “{{username}}” added.",
+    "removed": "User “{{username}}” removed.",
+    "roleChanged": "{{username}} is now {{role}}.",
+    "role_Admin": "Admin",
+    "role_Submitter": "Submitter",
+    "role_Viewer": "Viewer"
   },
   "common": {
     "loading": "Loading…",
@@ -126,6 +157,8 @@
   "errors": {
     "generic": "Something went wrong and the request did not complete. Please try again.",
     "notFoundOnServer": "That document could not be found on the server.",
+    "FORBIDDEN": "Your role does not allow this action.",
+    "UNAUTHENTICATED": "Your session has ended. Please sign in again.",
     "UNSUPPORTED_FILE_TYPE": "Only PDF, DOCX and TXT files can be processed.",
     "EMPTY_DOCUMENT": "No readable text — try a different file.",
     "EXTRACTION_FAILED": "The document could not be read. You can try again.",

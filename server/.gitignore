@@ -3,3 +3,6 @@
 **/dist/
 .claude/
 .agents/
+
+# Local user store (usernames + bcrypt hashes) — never commit real credentials.
+users.json

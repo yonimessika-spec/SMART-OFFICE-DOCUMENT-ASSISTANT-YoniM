@@ -6,6 +6,7 @@ import { CloudUpload } from 'lucide-react'
 import { processDocument } from '../api/index.js'
 import { ACCEPTED_TYPES, MAX_FILE_BYTES } from '../constants.js'
 import { useDocuments } from '../store.jsx'
+import { useAuth } from '../auth/AuthContext.jsx'
 import { Button } from '@/components/ui/button'
 import { Spinner } from '@/components/ui/spinner'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
@@ -50,6 +51,7 @@ function validate(file) {
 export default function Upload() {
   const { t } = useTranslation()
   const navigate = useNavigate()
+  const { user } = useAuth()
   const { upsertProcessed } = useDocuments()
   const inputRef = useRef(null)
 
@@ -91,7 +93,7 @@ export default function Upload() {
         file_name: file.name,
         mime_type: file.type,
         file_base64: await toBase64(file),
-        submitted_by: 'app-user',
+        submitted_by: user?.username || 'app-user',
       }
       const res = await processDocument(payload)
       if (res.status === 'error') {

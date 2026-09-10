@@ -2,6 +2,8 @@ import { useId, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { reviewDocument } from '../api/index.js'
 import { useDocuments } from '../store.jsx'
+import { useAuth } from '../auth/AuthContext.jsx'
+import { can } from '../auth/permissions.js'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Spinner } from '@/components/ui/spinner'
@@ -21,6 +23,7 @@ import ErrorMessage from './ErrorMessage.jsx'
 // as "flip back to unreviewed" (and clears reviewed_by / review_note itself).
 export default function ReopenDialog({ doc }) {
   const { t } = useTranslation()
+  const { user } = useAuth()
   const { reopenDocument } = useDocuments()
   const inputId = useId()
   const confirmWord = t('reopen.confirmWord')
@@ -31,6 +34,10 @@ export default function ReopenDialog({ doc }) {
   const [error, setError] = useState(null)
 
   const canConfirm = text.trim() === confirmWord && phase !== 'saving'
+
+  // Reopen posts /api/review — a write action. Viewers don't get the button
+  // (and the proxy would reject the call anyway).
+  if (!can(user?.role, 'review')) return null
 
   function onOpenChange(next) {
     if (phase === 'saving') return // don't let the modal close mid-request

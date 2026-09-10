@@ -11,7 +11,19 @@
 //
 // Request/response shapes: CONTRACT.md §1–§6.
 
+import { notifySessionExpired } from './session.js'
+
 const SERVER_BASE_URL = import.meta.env.VITE_SERVER_BASE_URL
+
+// Section 15: every proxy route now requires a valid session cookie. `fetch`
+// only sends that cookie cross-origin with credentials: 'include'. A 401 means
+// the session is gone — tell the auth context so the app returns to /login
+// instead of surfacing a raw error.
+const withCredentials = { credentials: 'include' }
+
+function handleUnauthorized(res) {
+  if (res.status === 401) notifySessionExpired()
+}
 
 // GET /api/documents  ->  CONTRACT.md §4
 // The proxy forwards n8n's response unchanged: a flat array of document rows in
@@ -27,6 +39,7 @@ export async function getDocuments() {
   let res
   try {
     res = await fetch(`${SERVER_BASE_URL}/api/documents`, {
+      ...withCredentials,
       headers: { Accept: 'application/json' },
     })
   } catch (cause) {
@@ -35,6 +48,7 @@ export async function getDocuments() {
   }
 
   if (!res.ok) {
+    handleUnauthorized(res)
     let detail = ''
     let code
     try {
@@ -78,6 +92,7 @@ export async function processDocument(payload) {
   let res
   try {
     res = await fetch(`${SERVER_BASE_URL}/api/process`, {
+      ...withCredentials,
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
       body: JSON.stringify(payload),
@@ -93,6 +108,7 @@ export async function processDocument(payload) {
   // Workflow A returns it with an HTTP 4xx (400 UNSUPPORTED_FILE_TYPE /
   // 422 EMPTY_DOCUMENT); also guard on body.status in case one arrives with 200.
   if (!res.ok || body?.status === 'error') {
+    handleUnauthorized(res)
     const err = new Error(
       body?.message || `The server returned ${res.status} for /api/process.`,
     )
@@ -133,6 +149,7 @@ export async function reviewDocument(payload) {
   let res
   try {
     res = await fetch(`${SERVER_BASE_URL}/api/review`, {
+      ...withCredentials,
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
       body: JSON.stringify(payload),
@@ -145,6 +162,7 @@ export async function reviewDocument(payload) {
   const body = await res.json().catch(() => null)
 
   if (!res.ok || body?.status === 'error') {
+    handleUnauthorized(res)
     const err = new Error(
       body?.message || `The server returned ${res.status} for /api/review.`,
     )
