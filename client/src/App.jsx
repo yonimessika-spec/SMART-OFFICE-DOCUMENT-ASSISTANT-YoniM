@@ -57,12 +57,64 @@ export default function App() {
     <DocumentsProvider>
       <div className="min-h-dvh">
         <header className="sticky top-0 z-10 border-b border-border bg-background/85 backdrop-blur">
-          <div className="mx-auto flex w-full max-w-4xl flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3 sm:px-6">
+          {/* Tier 1 — utility row: signed-in user + role, language, sign out.
+              `ms-auto` parks the cluster at the inline-end: right in LTR, left
+              in RTL (same pattern used across the app). */}
+          <div className="border-b border-border/60">
+            <div className="mx-auto flex w-full max-w-4xl px-4 py-1.5 sm:px-6">
+              <div className="ms-auto flex flex-wrap items-center justify-end gap-x-2 gap-y-1 text-xs">
+                {MOCKED.length > 0 && (
+                  <Badge
+                    variant="outline"
+                    className="font-normal whitespace-nowrap text-muted-foreground"
+                  >
+                    {t('nav.mockPrefix')}{' '}
+                    <span dir="ltr">{MOCKED.join(', ')}</span>
+                  </Badge>
+                )}
+
+                <span className="flex items-center gap-1.5 text-muted-foreground">
+                  <span dir="auto" className="font-medium text-foreground">
+                    {user.username}
+                  </span>
+                  <span className="rounded-full bg-muted px-1.5 py-0.5 font-medium whitespace-nowrap">
+                    {t(`users.role_${role}`, { defaultValue: role })}
+                  </span>
+                </span>
+
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="xs"
+                  className="text-muted-foreground"
+                  onClick={() => i18n.changeLanguage(other)}
+                  aria-label={t('lang.ariaLabel')}
+                >
+                  <Languages aria-hidden="true" />
+                  {t(`lang.${other}`)}
+                </Button>
+
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="xs"
+                  className="text-muted-foreground"
+                  onClick={logout}
+                >
+                  <LogOut aria-hidden="true" />
+                  {t('auth.signOut')}
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          {/* Tier 2 — brand wordmark + primary navigation */}
+          <div className="mx-auto flex w-full max-w-4xl flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2.5 sm:px-6">
             <span className="flex shrink-0 items-center gap-2 font-semibold tracking-tight whitespace-nowrap">
               <span aria-hidden="true" className="size-2.5 rounded-full bg-primary" />
               {t('nav.brand')}
             </span>
-            <nav className="flex items-center gap-1">
+            <nav className="flex flex-wrap items-center gap-1">
               <NavLink to="/" end className={navLink}>
                 {t('nav.dashboard')}
               </NavLink>
@@ -80,49 +132,6 @@ export default function App() {
                 </NavLink>
               )}
             </nav>
-
-            <div className="ms-auto flex items-center gap-2">
-              {MOCKED.length > 0 && (
-                <Badge
-                  variant="outline"
-                  className="font-normal whitespace-nowrap text-muted-foreground"
-                >
-                  {t('nav.mockPrefix')}{' '}
-                  <span dir="ltr">{MOCKED.join(', ')}</span>
-                </Badge>
-              )}
-
-              <span className="hidden items-center gap-1.5 text-xs text-muted-foreground sm:flex">
-                <span dir="auto" className="font-medium text-foreground">
-                  {user.username}
-                </span>
-                <span aria-hidden="true">·</span>
-                <span>{t(`users.role_${role}`, { defaultValue: role })}</span>
-              </span>
-
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="text-muted-foreground"
-                onClick={() => i18n.changeLanguage(other)}
-                aria-label={t('lang.ariaLabel')}
-              >
-                <Languages aria-hidden="true" />
-                {t(`lang.${other}`)}
-              </Button>
-
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="text-muted-foreground"
-                onClick={logout}
-              >
-                <LogOut aria-hidden="true" />
-                {t('auth.signOut')}
-              </Button>
-            </div>
           </div>
         </header>
 
