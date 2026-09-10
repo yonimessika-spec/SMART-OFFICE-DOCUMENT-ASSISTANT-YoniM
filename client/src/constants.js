@@ -13,6 +13,11 @@ export const ACCEPTED_TYPES = {
 export const MAX_FILE_MB = Number(import.meta.env.VITE_MAX_FILE_MB) || 10
 export const MAX_FILE_BYTES = MAX_FILE_MB * 1024 * 1024
 
+// Multi-file upload: how many files one batch may hold. The batch is processed
+// one file at a time (the proxy/n8n handle a single file per request); this is
+// only a client-side guard against an unwieldy queue.
+export const MAX_BATCH_FILES = 10
+
 // SPEC.md §5: urgency values are displayed exactly as n8n returns them.
 // This map is presentation only (badge colour). Label text is always shown too —
 // never colour-only (SPEC.md F3).

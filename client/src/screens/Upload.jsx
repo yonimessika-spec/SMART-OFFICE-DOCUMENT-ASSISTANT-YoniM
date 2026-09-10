@@ -1,26 +1,23 @@
-import { useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { cn } from 'cn'
 import { CloudUpload } from 'lucide-react'
 import { processDocument } from '../api/index.js'
-import { ACCEPTED_TYPES, MAX_FILE_BYTES } from '../constants.js'
+import { ACCEPTED_TYPES, MAX_FILE_BYTES, MAX_BATCH_FILES } from '../constants.js'
 import { useDocuments } from '../store.jsx'
 import { useAuth } from '../auth/AuthContext.jsx'
 import { Button } from '@/components/ui/button'
 import { Spinner } from '@/components/ui/spinner'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card'
-import FieldList from '../components/FieldList.jsx'
-import ErrorMessage from '../components/ErrorMessage.jsx'
+import UploadItem from '../components/UploadItem.jsx'
 
-// F1 Upload + F2 Processing state + F3 Result view. See src/locales for copy.
+// F1 Upload + F2 Processing state + F3 Result view, extended to a multi-file
+// batch. Selection (picker + drag-drop) takes several files at once, capped at
+// MAX_BATCH_FILES. Each file is validated individually up front; a bad file
+// becomes an "invalid" row and never blocks the others. Valid files are queued
+// and processed ONE AT A TIME through the existing single-file endpoint — a
+// failure on one file is recorded on its row and the queue moves on. See
+// src/locales for all copy; per-row UI lives in components/UploadItem.jsx.
 
 const MAX_MB = Math.round(MAX_FILE_BYTES / (1024 * 1024))
 
@@ -34,11 +31,9 @@ function toBase64(file) {
   })
 }
 
-// Returns null, or an i18n key + params describing the client-side rejection.
+// null, or an i18n key (+ params) describing why the file is rejected client-side.
 function validate(file) {
-  if (!ACCEPTED_TYPES[file.type]) {
-    return { key: 'upload.errUnsupported' }
-  }
+  if (!ACCEPTED_TYPES[file.type]) return { key: 'upload.errUnsupported' }
   if (file.size > MAX_FILE_BYTES) {
     return {
       key: 'upload.errTooBig',
@@ -48,134 +43,133 @@ function validate(file) {
   return null
 }
 
+const newId = () =>
+  (crypto.randomUUID?.() ?? `f_${Date.now()}_${Math.random().toString(36).slice(2)}`)
+
 export default function Upload() {
   const { t } = useTranslation()
-  const navigate = useNavigate()
   const { user } = useAuth()
   const { upsertProcessed } = useDocuments()
   const inputRef = useRef(null)
 
-  const [file, setFile] = useState(null)
-  const [localError, setLocalError] = useState(null) // { key, params } | null
+  // items: { id, file, status, error?, result? }
+  //   status: 'invalid' | 'queued' | 'processing' | 'success' | 'failed'
+  const [items, setItems] = useState([])
+  const [started, setStarted] = useState(false) // Send clicked → the runner is live
+  const [capError, setCapError] = useState(null) // { key, params } | null
   const [dragging, setDragging] = useState(false)
 
-  const [phase, setPhase] = useState('idle') // idle | processing | done | error
-  const [result, setResult] = useState(null)
-  const [apiError, setApiError] = useState(null) // { code } or Error
+  const runningRef = useRef(false) // one upload in flight at a time (StrictMode-safe)
 
-  function pick(nextFile) {
-    setApiError(null)
-    setResult(null)
-    setPhase('idle')
-    if (!nextFile) return
-    const problem = validate(nextFile)
-    if (problem) {
-      setFile(null)
-      setLocalError(problem)
+  const queuedCount = items.filter((i) => i.status === 'queued').length
+  const processing = items.find((i) => i.status === 'processing') || null
+  const successCount = items.filter((i) => i.status === 'success').length
+  const failedCount = items.filter((i) => i.status === 'failed').length
+  const settledCount = items.filter((i) =>
+    ['success', 'failed', 'invalid'].includes(i.status),
+  ).length
+  const batchDone =
+    started && items.length > 0 && !processing && queuedCount === 0
+
+  // --- Sequential runner ---------------------------------------------------
+  // Picks the first queued file, marks it processing, uploads it, records the
+  // outcome, then re-runs (state change) to take the next. `runningRef` guards
+  // against a parallel start (and React 18 StrictMode's double-invoke).
+  useEffect(() => {
+    if (!started || runningRef.current) return
+    const next = items.find((i) => i.status === 'queued')
+    if (!next) return
+
+    runningRef.current = true
+    setItems((s) => s.map((i) => (i.id === next.id ? { ...i, status: 'processing' } : i)))
+
+    ;(async () => {
+      let patch
+      try {
+        const res = await processDocument({
+          file_name: next.file.name,
+          mime_type: next.file.type,
+          file_base64: await toBase64(next.file),
+          submitted_by: user?.username || 'app-user',
+        })
+        if (res && res.status === 'error') {
+          patch = { status: 'failed', error: { code: res.error_code } }
+        } else {
+          upsertProcessed(res)
+          patch = { status: 'success', result: res }
+        }
+      } catch (err) {
+        patch = { status: 'failed', error: err }
+      }
+      runningRef.current = false
+      setItems((s) => s.map((i) => (i.id === next.id ? { ...i, ...patch } : i)))
+    })()
+  }, [items, started, user, upsertProcessed])
+
+  // --- Selection ---------------------------------------------------------
+  function addFiles(fileList) {
+    const incoming = Array.from(fileList || [])
+    if (incoming.length === 0) return
+    setCapError(null)
+
+    if (items.length + incoming.length > MAX_BATCH_FILES) {
+      // Reject the whole over-limit selection rather than silently truncating —
+      // no ambiguity about which files were kept.
+      setCapError({ key: 'upload.capExceeded', params: { max: MAX_BATCH_FILES } })
+      if (inputRef.current) inputRef.current.value = ''
       return
     }
-    setLocalError(null)
-    setFile(nextFile)
-  }
 
-  function onDrop(e) {
-    e.preventDefault()
-    setDragging(false)
-    pick(e.dataTransfer.files?.[0])
-  }
-
-  async function onSend() {
-    if (!file || phase === 'processing') return
-    setPhase('processing')
-    setApiError(null)
-    try {
-      const payload = {
-        file_name: file.name,
-        mime_type: file.type,
-        file_base64: await toBase64(file),
-        submitted_by: user?.username || 'app-user',
+    const additions = incoming.map((file) => {
+      const problem = validate(file)
+      return {
+        id: newId(),
+        file,
+        status: problem ? 'invalid' : 'queued',
+        error: problem || null,
+        result: null,
       }
-      const res = await processDocument(payload)
-      if (res.status === 'error') {
-        // CONTRACT.md §3 error envelope.
-        setApiError({ code: res.error_code })
-        setPhase('error')
-        return
-      }
-      setResult(res)
-      upsertProcessed(res)
-      setPhase('done')
-    } catch (err) {
-      setApiError(err)
-      setPhase('error')
-    }
-  }
-
-  function reset() {
-    setFile(null)
-    setResult(null)
-    setApiError(null)
-    setLocalError(null)
-    setPhase('idle')
+    })
+    setItems((s) => [...s, ...additions])
     if (inputRef.current) inputRef.current.value = ''
   }
 
-  // ---- Result view (F3) ----
-  if (phase === 'done' && result) {
-    return (
-      <section className="flex flex-col gap-6">
-        <div>
-          <h1 className="text-2xl">{t('upload.doneTitle')}</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {result.notification_sent
-              ? t('upload.doneNotified')
-              : t('upload.doneNotNotified')}
-          </p>
-        </div>
+  function removeItem(id) {
+    setItems((s) => s.filter((i) => i.id !== id))
+    setCapError(null)
+  }
 
-        <Card>
-          <CardHeader>
-            <CardTitle dir="auto" className="truncate">
-              {result.file_name}
-            </CardTitle>
-            <CardDescription>
-              <a
-                href={result.file_link}
-                target="_blank"
-                rel="noreferrer"
-                className="font-medium text-primary underline-offset-4 hover:underline"
-              >
-                {t('common.openFile')}
-              </a>
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <FieldList fields={result.fields} />
-          </CardContent>
-        </Card>
-
-        <div className="flex flex-wrap gap-3">
-          <Button
-            type="button"
-            onClick={() =>
-              navigate(
-                `/document/${encodeURIComponent(result.document_id || result.file_name)}`,
-              )
-            }
-          >
-            {t('upload.openDetail')}
-          </Button>
-          <Button type="button" variant="outline" onClick={reset}>
-            {t('upload.uploadAnother')}
-          </Button>
-        </div>
-      </section>
+  function retryItem(id) {
+    setItems((s) =>
+      s.map((i) => (i.id === id ? { ...i, status: 'queued', error: null, result: null } : i)),
     )
   }
 
+  function start() {
+    if (queuedCount === 0) return
+    setStarted(true)
+  }
+
+  function reset() {
+    setItems([])
+    setStarted(false)
+    setCapError(null)
+    runningRef.current = false
+    if (inputRef.current) inputRef.current.value = ''
+  }
+
+  const showClear = items.length > 0 && !processing
+
   return (
     <section className="flex flex-col gap-6">
-      <h1 className="text-2xl">{t('upload.title')}</h1>
+      <div>
+        <h1 className="text-2xl">{t('upload.title')}</h1>
+        {started && items.length > 0 && (
+          <p className="mt-1 text-sm text-muted-foreground">
+            {t('upload.batchProgress', { done: settledCount, total: items.length })}
+          </p>
+        )}
+      </div>
 
       <div
         className={cn(
@@ -189,73 +183,95 @@ export default function Upload() {
           setDragging(true)
         }}
         onDragLeave={() => setDragging(false)}
-        onDrop={onDrop}
+        onDrop={(e) => {
+          e.preventDefault()
+          setDragging(false)
+          addFiles(e.dataTransfer.files)
+        }}
         onClick={() => inputRef.current?.click()}
         role="button"
         tabIndex={0}
-        onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && inputRef.current?.click()}
+        onKeyDown={(e) =>
+          (e.key === 'Enter' || e.key === ' ') && inputRef.current?.click()
+        }
       >
         <CloudUpload aria-hidden="true" className="size-8 text-muted-foreground" />
-        <p className="text-sm font-medium">{t('upload.dropzone')}</p>
+        <p className="text-sm font-medium">{t('upload.dropzoneMulti')}</p>
         <p className="text-xs text-muted-foreground">
-          <span dir="ltr">PDF, DOCX, TXT</span> · {t('upload.hintSize', { mb: MAX_MB })}
+          <span dir="ltr">PDF, DOCX, TXT</span>{' '}
+          {t('upload.hintMulti', { mb: MAX_MB, max: MAX_BATCH_FILES })}
         </p>
         <input
           ref={inputRef}
           type="file"
+          multiple
           accept={Object.values(ACCEPTED_TYPES).join(',')}
           hidden
-          onChange={(e) => pick(e.target.files?.[0])}
+          onChange={(e) => addFiles(e.target.files)}
         />
       </div>
 
-      {localError && (
+      {capError && (
         <Alert variant="destructive">
           <AlertTitle>{t('upload.rejectedTitle')}</AlertTitle>
-          <AlertDescription>{t(localError.key, localError.params)}</AlertDescription>
+          <AlertDescription>{t(capError.key, capError.params)}</AlertDescription>
         </Alert>
       )}
 
-      {file && (
-        <p className="text-sm text-muted-foreground">
-          {t('upload.selectedLabel')}{' '}
-          <span dir="auto" className="font-medium text-foreground">
-            {file.name}
-          </span>{' '}
-          <span dir="ltr" className="tabular-nums">
-            ({(file.size / 1024).toFixed(0)} KB)
-          </span>
-        </p>
+      {items.length > 0 && (
+        <ul className="divide-y divide-border rounded-lg border border-border">
+          {items.map((item) => (
+            <UploadItem
+              key={item.id}
+              item={item}
+              onRetry={retryItem}
+              onRemove={removeItem}
+            />
+          ))}
+        </ul>
       )}
 
-      {phase === 'processing' && (
+      {processing && (
         <Alert role="status" aria-live="polite">
           <Spinner />
           <AlertTitle>{t('upload.processingTitle')}</AlertTitle>
-          <AlertDescription>{t('upload.processingBody')}</AlertDescription>
+          <AlertDescription>
+            {t('upload.batchRunning', { name: processing.file.name })}{' '}
+            {t('upload.processingBody')}
+          </AlertDescription>
         </Alert>
       )}
 
-      {phase === 'error' && (
-        <ErrorMessage
-          code={apiError?.code}
-          error={apiError instanceof Error ? apiError : undefined}
-          onRetry={onSend}
-        />
+      {batchDone && (
+        <Alert role="status">
+          <AlertTitle>{t('upload.batchDoneTitle')}</AlertTitle>
+          <AlertDescription>
+            {t('upload.batchDoneBody', { success: successCount, failed: failedCount })}
+          </AlertDescription>
+        </Alert>
       )}
 
       <div className="flex flex-wrap gap-3">
-        <Button type="button" onClick={onSend} disabled={!file || phase === 'processing'}>
-          {phase === 'processing' ? t('common.processing') : t('upload.send')}
-        </Button>
-        {(file || phase === 'error') && (
-          <Button
-            type="button"
-            variant="outline"
-            onClick={reset}
-            disabled={phase === 'processing'}
-          >
-            {t('common.clear')}
+        {!started ? (
+          <Button type="button" onClick={start} disabled={queuedCount === 0}>
+            {queuedCount === 1
+              ? t('upload.sendOne')
+              : t('upload.sendMany', { count: queuedCount })}
+          </Button>
+        ) : batchDone ? (
+          <Button type="button" onClick={reset}>
+            {t('upload.uploadAnother')}
+          </Button>
+        ) : (
+          <Button type="button" disabled>
+            <Spinner />
+            {t('common.processing')}
+          </Button>
+        )}
+
+        {showClear && (
+          <Button type="button" variant="outline" onClick={reset}>
+            {t('common.clearAll')}
           </Button>
         )}
       </div>
