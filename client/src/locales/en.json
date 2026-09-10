@@ -1,0 +1,133 @@
+{
+  "app": {
+    "title": "Smart Office Document Assistant"
+  },
+  "nav": {
+    "brand": "Smart Office",
+    "dashboard": "Dashboard",
+    "archive": "Archive",
+    "upload": "Upload",
+    "mockPrefix": "Mock:"
+  },
+  "lang": {
+    "ariaLabel": "Change language",
+    "en": "English",
+    "he": "עברית"
+  },
+  "common": {
+    "loading": "Loading…",
+    "processing": "Processing…",
+    "saving": "Saving…",
+    "tryAgain": "Try again",
+    "cancel": "Cancel",
+    "clear": "Clear",
+    "clearAll": "Clear all",
+    "openFile": "Open file",
+    "pageNotFound": "Page not found.",
+    "notFound": "Not found",
+    "noActionFound": "No action found",
+    "count_one": "{{count}} document",
+    "count_other": "{{count}} documents",
+    "countFiltered": "{{visible}} of {{total}} documents",
+    "noMatchesTitle": "No matches"
+  },
+  "status": {
+    "Processed": "Processed",
+    "Needs Review": "Needs Review",
+    "Reviewed": "Reviewed"
+  },
+  "fields": {
+    "document_type": "Document type",
+    "sender_or_company": "Sender / company",
+    "summary": "Summary",
+    "requested_action": "Requested action",
+    "deadline": "Deadline",
+    "urgency": "Urgency",
+    "department": "Department"
+  },
+  "urgencyBadge": {
+    "label": "Urgency: {{value}}"
+  },
+  "search": {
+    "placeholder": "Search file name, sender, or summary…",
+    "ariaDefault": "Search documents",
+    "ariaArchive": "Search the archive"
+  },
+  "filters": {
+    "urgency": "Urgency",
+    "type": "Type",
+    "department": "Department",
+    "status": "Status",
+    "allUrgency": "All urgency",
+    "allType": "All type",
+    "allDepartment": "All department",
+    "allStatuses": "All statuses",
+    "statusActive": "Needs Review + Processed"
+  },
+  "dashboard": {
+    "title": "Documents",
+    "emptyTitle": "No documents yet",
+    "emptyBody": "No documents have been processed yet.",
+    "noMatchesBody": "No documents match your search and filters."
+  },
+  "archive": {
+    "title": "Archive",
+    "emptyTitle": "Nothing archived yet",
+    "emptyBody": "Documents show up here once they’re marked as reviewed.",
+    "noMatchesBody": "No archived documents match your search.",
+    "reviewedBy": "Reviewed by {{name}}"
+  },
+  "upload": {
+    "title": "Upload a document",
+    "dropzone": "Drag a file here, or click to choose one.",
+    "hintSize": "up to {{mb}} MB",
+    "rejectedTitle": "File not accepted",
+    "errUnsupported": "Only PDF, DOCX and TXT files can be processed.",
+    "errTooBig": "That file is {{size}} MB. The limit is {{max}} MB.",
+    "selectedLabel": "Selected:",
+    "processingTitle": "Processing…",
+    "processingBody": "This can take up to 90 seconds. Please keep this tab open.",
+    "send": "Send for processing",
+    "doneTitle": "Processed",
+    "doneNotified": "Document processed and a notification was sent.",
+    "doneNotNotified": "Document processed. No notification was sent.",
+    "openDetail": "Open detail view",
+    "uploadAnother": "Upload another"
+  },
+  "detail": {
+    "loading": "Loading…",
+    "notLoadedTitle": "Document not loaded",
+    "notLoadedBody": "No document with ID “{{id}}” is loaded.",
+    "backToDocuments": "Back to documents",
+    "allDocuments": "All documents",
+    "receivedLabel": "Received",
+    "statusLabel": "Status",
+    "reviewNoteLabel": "Review note: ",
+    "reviewTitle": "Review",
+    "alreadyReviewed": "This document is already marked as Reviewed. Submitting again will update the note.",
+    "noteLabel": "Note (optional)",
+    "charCountUnit": "characters",
+    "doneReviewed": "Saved. This document is now marked as Reviewed. This document is now available to view on Archive.",
+    "doneNeedsReview": "Saved. This document is now flagged as Needs Review.",
+    "markReviewed": "Mark as reviewed",
+    "flagNeedsReview": "Flag as needs review"
+  },
+  "reopen": {
+    "button": "Reopen",
+    "title": "Reopen this document?",
+    "description": "{{name}} moves back to the Dashboard as unreviewed. Its reviewer and review note are cleared.",
+    "confirmWord": "Reopen",
+    "confirmLabel": "Type “{{word}}” to confirm",
+    "confirm": "Reopen",
+    "confirming": "Reopening…"
+  },
+  "errors": {
+    "generic": "Something went wrong and the request did not complete. Please try again.",
+    "notFoundOnServer": "That document could not be found on the server.",
+    "UNSUPPORTED_FILE_TYPE": "Only PDF, DOCX and TXT files can be processed.",
+    "EMPTY_DOCUMENT": "No readable text — try a different file.",
+    "EXTRACTION_FAILED": "The document could not be read. You can try again.",
+    "UNAUTHORIZED": "Configuration error: the server rejected our credentials. This is not something you can fix here.",
+    "DOCUMENT_NOT_FOUND": "That document is no longer in the sheet — it may have been removed."
+  }
+}

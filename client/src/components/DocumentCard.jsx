@@ -32,7 +32,10 @@ export default function DocumentCard({ doc }) {
       }
     >
       <div className="flex items-start justify-between gap-3">
-        <h2 className="min-w-0 flex-1 truncate text-base font-semibold text-foreground">
+        <h2
+          dir="auto"
+          className="min-w-0 flex-1 truncate text-base font-semibold text-foreground"
+        >
           {doc.file_name}
         </h2>
         <div className="flex shrink-0 flex-col items-end gap-1.5">
@@ -52,8 +55,11 @@ export default function DocumentCard({ doc }) {
         <Badge variant="outline" className="font-normal">
           {doc.department}
         </Badge>
-        {/* received_at is an opaque display string from n8n — show it as-is. */}
-        <span className="ml-auto tabular-nums">{doc.received_at}</span>
+        {/* received_at is an opaque display string from n8n — show it as-is,
+            and keep it LTR even inside an RTL layout. */}
+        <span dir="ltr" className="ms-auto tabular-nums">
+          {doc.received_at}
+        </span>
       </div>
     </Link>
   )

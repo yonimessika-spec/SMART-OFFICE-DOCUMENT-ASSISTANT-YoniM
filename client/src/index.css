@@ -136,7 +136,9 @@
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
 
-  --font-sans: 'Hanken Grotesk', ui-sans-serif, system-ui, -apple-system,
+  /* Latin glyphs resolve to Hanken Grotesk; Hebrew glyphs (absent from Hanken)
+     fall through to Heebo. English rendering is unchanged. */
+  --font-sans: 'Hanken Grotesk', 'Heebo', ui-sans-serif, system-ui, -apple-system,
     'Segoe UI', Roboto, sans-serif;
 
   --radius-sm: calc(var(--radius) - 4px);

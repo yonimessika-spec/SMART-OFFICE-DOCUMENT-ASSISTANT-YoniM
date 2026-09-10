@@ -1,4 +1,5 @@
 import { useId, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { reviewDocument } from '../api/index.js'
 import { useDocuments } from '../store.jsx'
 import { Button } from '@/components/ui/button'
@@ -15,21 +16,21 @@ import {
 } from '@/components/ui/dialog'
 import ErrorMessage from './ErrorMessage.jsx'
 
-const CONFIRM_WORD = 'Reopen'
-
 // "Reopen" button + confirm-by-typing modal for one archived document.
 // Confirm posts /api/review with status "Processed", which the backend treats
 // as "flip back to unreviewed" (and clears reviewed_by / review_note itself).
 export default function ReopenDialog({ doc }) {
+  const { t } = useTranslation()
   const { reopenDocument } = useDocuments()
   const inputId = useId()
+  const confirmWord = t('reopen.confirmWord')
 
   const [open, setOpen] = useState(false)
   const [text, setText] = useState('')
   const [phase, setPhase] = useState('idle') // idle | saving | error
   const [error, setError] = useState(null)
 
-  const canConfirm = text === CONFIRM_WORD && phase !== 'saving'
+  const canConfirm = text.trim() === confirmWord && phase !== 'saving'
 
   function onOpenChange(next) {
     if (phase === 'saving') return // don't let the modal close mid-request
@@ -74,23 +75,21 @@ export default function ReopenDialog({ doc }) {
         size="sm"
         onClick={() => setOpen(true)}
       >
-        Reopen
+        {t('reopen.button')}
       </Button>
 
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Reopen this document?</DialogTitle>
+            <DialogTitle>{t('reopen.title')}</DialogTitle>
             <DialogDescription>
-              <span className="font-medium text-foreground">{doc.file_name}</span>{' '}
-              moves back to the Dashboard as unreviewed. Its reviewer and review
-              note are cleared.
+              {t('reopen.description', { name: doc.file_name })}
             </DialogDescription>
           </DialogHeader>
 
           <Field>
             <FieldLabel htmlFor={inputId}>
-              Type “{CONFIRM_WORD}” to confirm
+              {t('reopen.confirmLabel', { word: confirmWord })}
             </FieldLabel>
             <Input
               id={inputId}
@@ -98,7 +97,7 @@ export default function ReopenDialog({ doc }) {
               onChange={(e) => setText(e.target.value)}
               autoComplete="off"
               spellCheck={false}
-              placeholder={CONFIRM_WORD}
+              placeholder={confirmWord}
             />
           </Field>
 
@@ -116,11 +115,11 @@ export default function ReopenDialog({ doc }) {
               onClick={() => onOpenChange(false)}
               disabled={phase === 'saving'}
             >
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button type="button" onClick={onConfirm} disabled={!canConfirm}>
               {phase === 'saving' && <Spinner />}
-              {phase === 'saving' ? 'Reopening…' : 'Reopen'}
+              {phase === 'saving' ? t('reopen.confirming') : t('reopen.confirm')}
             </Button>
           </DialogFooter>
         </DialogContent>

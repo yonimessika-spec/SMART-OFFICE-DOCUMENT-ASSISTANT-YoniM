@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useDocuments } from '../store.jsx'
 import { matchesQuery } from '../search.js'
 import { Button } from '@/components/ui/button'
@@ -21,18 +22,13 @@ import SearchField from '../components/SearchField.jsx'
 import DocumentCard from '../components/DocumentCard.jsx'
 import ErrorMessage from '../components/ErrorMessage.jsx'
 
-// F4 Dashboard + F5 Search & filters.
-// - free-text over file_name / sender_or_company / summary (shared: matchesQuery)
-// - filters: urgency, document_type, department, status (combinable)
-// - the Status filter defaults to the "active work" set: "Needs Review" (looked
-//   at, still needs action) + "Processed" (not looked at yet). "Reviewed"
-//   documents live on the Archive page. The dropdown still lets a user narrow to
-//   one status, or widen to all.
-// - "Needs Review" rows sort first and carry the amber StatusBadge treatment.
-// - clear "no results" state, clear empty-list state (F7)
+// F4 Dashboard + F5 Search & filters. See src/locales for all UI copy.
 //
-// Filter option lists are derived from the data itself, so no value is ever
-// invented (SPEC.md §5).
+// The Status filter defaults to the "active work" set: "Needs Review" (looked
+// at, still needs action) + "Processed" (not looked at yet). "Reviewed"
+// documents live on the Archive page. The dropdown still narrows to one status
+// or widens to all. Filter option values are the raw n8n strings (SPEC.md §5);
+// only their display labels are localised.
 
 // Status-filter sentinels (never real status values).
 const ACTIVE = '__active' // default: Needs Review + Processed
@@ -42,12 +38,13 @@ const ACTIVE_STATUSES = ['Needs Review', 'Processed']
 const STATUS_RANK = { 'Needs Review': 0, Processed: 1 } // Needs Review sorts first
 
 const FILTER_KEYS = [
-  ['urgency', 'Urgency'],
-  ['document_type', 'Type'],
-  ['department', 'Department'],
+  { key: 'urgency', label: 'filters.urgency', all: 'filters.allUrgency' },
+  { key: 'document_type', label: 'filters.type', all: 'filters.allType' },
+  { key: 'department', label: 'filters.department', all: 'filters.allDepartment' },
 ]
 
 export default function Dashboard() {
+  const { t } = useTranslation()
   const { documents, loading, error, refresh } = useDocuments()
   const [query, setQuery] = useState('')
   const [filters, setFilters] = useState({ status: ACTIVE })
@@ -65,14 +62,10 @@ export default function Dashboard() {
     return documents
       .filter((d) => {
         if (!matchesQuery(d, query)) return false
-        // status: ACTIVE -> the two active statuses; ALL -> no constraint;
-        // a real value -> just that one
         if (s === ACTIVE && !ACTIVE_STATUSES.includes(d.status)) return false
         if (s !== ACTIVE && s !== ALL && d.status !== s) return false
-        return FILTER_KEYS.every(([k]) => !filters[k] || d[k] === filters[k])
+        return FILTER_KEYS.every(({ key }) => !filters[key] || d[key] === filters[key])
       })
-      // stable sort keeps the API layer's newest-first order within each group;
-      // "Needs Review" ahead of "Processed", anything else last
       .sort((a, b) => (STATUS_RANK[a.status] ?? 9) - (STATUS_RANK[b.status] ?? 9))
   }, [documents, query, filters])
 
@@ -110,11 +103,11 @@ export default function Dashboard() {
   return (
     <section className="flex flex-col gap-6">
       <div>
-        <h1 className="text-2xl">Documents</h1>
-        <p className="mt-1 text-sm text-muted-foreground tabular-nums">
+        <h1 className="text-2xl">{t('dashboard.title')}</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
           {visible.length === documents.length
-            ? `${documents.length} ${documents.length === 1 ? 'document' : 'documents'}`
-            : `${visible.length} of ${documents.length} documents`}
+            ? t('common.count', { count: documents.length })
+            : t('common.countFiltered', { visible: visible.length, total: documents.length })}
         </p>
       </div>
 
@@ -122,17 +115,17 @@ export default function Dashboard() {
         <SearchField value={query} onChange={setQuery} />
 
         <div className="flex flex-wrap gap-2">
-          {FILTER_KEYS.map(([key, label]) => (
+          {FILTER_KEYS.map(({ key, label, all }) => (
             <Select
               key={key}
               value={filters[key] || 'all'}
               onValueChange={(v) => setFilter(key, v === 'all' ? '' : v)}
             >
-              <SelectTrigger className="w-38" aria-label={label}>
-                <SelectValue placeholder={label} />
+              <SelectTrigger className="w-38" aria-label={t(label)}>
+                <SelectValue placeholder={t(label)} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All {label.toLowerCase()}</SelectItem>
+                <SelectItem value="all">{t(all)}</SelectItem>
                 {options[key].map((v) => (
                   <SelectItem key={v} value={v}>
                     {v}
@@ -146,23 +139,23 @@ export default function Dashboard() {
             value={filters.status || ACTIVE}
             onValueChange={(v) => setFilters((prev) => ({ ...prev, status: v }))}
           >
-            <SelectTrigger className="w-56" aria-label="Status">
+            <SelectTrigger className="w-56" aria-label={t('filters.status')}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value={ACTIVE}>Needs Review + Processed</SelectItem>
+              <SelectItem value={ACTIVE}>{t('filters.statusActive')}</SelectItem>
               {options.status.map((v) => (
                 <SelectItem key={v} value={v}>
-                  {v}
+                  {t(`status.${v}`, { defaultValue: v })}
                 </SelectItem>
               ))}
-              <SelectItem value={ALL}>All statuses</SelectItem>
+              <SelectItem value={ALL}>{t('filters.allStatuses')}</SelectItem>
             </SelectContent>
           </Select>
 
           {hasActiveControls && (
             <Button type="button" variant="ghost" size="sm" onClick={clearAll}>
-              Clear
+              {t('common.clear')}
             </Button>
           )}
         </div>
@@ -171,23 +164,19 @@ export default function Dashboard() {
       {documents.length === 0 ? (
         <Empty className="border border-border">
           <EmptyHeader>
-            <EmptyTitle>No documents yet</EmptyTitle>
-            <EmptyDescription>
-              No documents have been processed yet.
-            </EmptyDescription>
+            <EmptyTitle>{t('dashboard.emptyTitle')}</EmptyTitle>
+            <EmptyDescription>{t('dashboard.emptyBody')}</EmptyDescription>
           </EmptyHeader>
         </Empty>
       ) : visible.length === 0 ? (
         <Empty className="border border-border">
           <EmptyHeader>
-            <EmptyTitle>No matches</EmptyTitle>
-            <EmptyDescription>
-              No documents match your search and filters.
-            </EmptyDescription>
+            <EmptyTitle>{t('common.noMatchesTitle')}</EmptyTitle>
+            <EmptyDescription>{t('dashboard.noMatchesBody')}</EmptyDescription>
           </EmptyHeader>
           <EmptyContent>
             <Button type="button" variant="outline" size="sm" onClick={clearAll}>
-              Clear all
+              {t('common.clearAll')}
             </Button>
           </EmptyContent>
         </Empty>

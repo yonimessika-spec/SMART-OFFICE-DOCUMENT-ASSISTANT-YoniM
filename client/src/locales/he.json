@@ -1,0 +1,133 @@
+{
+  "app": {
+    "title": "עוזר המסמכים – המשרד החכם"
+  },
+  "nav": {
+    "brand": "המשרד החכם",
+    "dashboard": "לוח בקרה",
+    "archive": "ארכיון",
+    "upload": "העלאה",
+    "mockPrefix": "מדומה:"
+  },
+  "lang": {
+    "ariaLabel": "שינוי שפה",
+    "en": "English",
+    "he": "עברית"
+  },
+  "common": {
+    "loading": "טוען…",
+    "processing": "מעבד…",
+    "saving": "שומר…",
+    "tryAgain": "נסו שוב",
+    "cancel": "ביטול",
+    "clear": "ניקוי",
+    "clearAll": "ניקוי הכול",
+    "openFile": "פתיחת הקובץ",
+    "pageNotFound": "הדף לא נמצא.",
+    "notFound": "לא נמצא",
+    "noActionFound": "לא נדרשת פעולה",
+    "count_one": "מסמך אחד",
+    "count_other": "{{count}} מסמכים",
+    "countFiltered": "{{visible}} מתוך {{total}} מסמכים",
+    "noMatchesTitle": "אין תוצאות"
+  },
+  "status": {
+    "Processed": "מעובד",
+    "Needs Review": "דורש טיפול",
+    "Reviewed": "טופל"
+  },
+  "fields": {
+    "document_type": "סוג מסמך",
+    "sender_or_company": "שולח / חברה",
+    "summary": "תקציר",
+    "requested_action": "פעולה נדרשת",
+    "deadline": "מועד אחרון",
+    "urgency": "דחיפות",
+    "department": "מחלקה"
+  },
+  "urgencyBadge": {
+    "label": "דחיפות: {{value}}"
+  },
+  "search": {
+    "placeholder": "חיפוש לפי שם קובץ, שולח או תקציר…",
+    "ariaDefault": "חיפוש מסמכים",
+    "ariaArchive": "חיפוש בארכיון"
+  },
+  "filters": {
+    "urgency": "דחיפות",
+    "type": "סוג",
+    "department": "מחלקה",
+    "status": "סטטוס",
+    "allUrgency": "כל הדחיפויות",
+    "allType": "כל הסוגים",
+    "allDepartment": "כל המחלקות",
+    "allStatuses": "כל הסטטוסים",
+    "statusActive": "דורש טיפול ומעובד"
+  },
+  "dashboard": {
+    "title": "מסמכים",
+    "emptyTitle": "אין עדיין מסמכים",
+    "emptyBody": "עדיין לא עובדו מסמכים.",
+    "noMatchesBody": "אין מסמכים התואמים לחיפוש ולסינון."
+  },
+  "archive": {
+    "title": "ארכיון",
+    "emptyTitle": "הארכיון ריק",
+    "emptyBody": "מסמכים יופיעו כאן לאחר שיסומנו כטופלו.",
+    "noMatchesBody": "אין מסמכים בארכיון התואמים לחיפוש.",
+    "reviewedBy": "טופל על ידי {{name}}"
+  },
+  "upload": {
+    "title": "העלאת מסמך",
+    "dropzone": "גררו קובץ לכאן, או לחצו לבחירת קובץ",
+    "hintSize": "עד {{mb}} MB",
+    "rejectedTitle": "הקובץ לא התקבל",
+    "errUnsupported": "ניתן לעבד רק קבצי PDF, מסמכי Word וקבצי טקסט.",
+    "errTooBig": "גודל הקובץ {{size}} MB. המגבלה היא {{max}} MB.",
+    "selectedLabel": "נבחר:",
+    "processingTitle": "מעבד…",
+    "processingBody": "העיבוד עשוי להימשך עד 90 שניות. אנא השאירו את הכרטיסייה פתוחה.",
+    "send": "שליחה לעיבוד",
+    "doneTitle": "עובד בהצלחה",
+    "doneNotified": "המסמך עובד ונשלחה התראה.",
+    "doneNotNotified": "המסמך עובד. לא נשלחה התראה.",
+    "openDetail": "פתיחת תצוגה מפורטת",
+    "uploadAnother": "העלאת מסמך נוסף"
+  },
+  "detail": {
+    "loading": "טוען…",
+    "notLoadedTitle": "המסמך לא נטען",
+    "notLoadedBody": "לא נטען מסמך עם המזהה “{{id}}”.",
+    "backToDocuments": "חזרה למסמכים",
+    "allDocuments": "כל המסמכים",
+    "receivedLabel": "התקבל",
+    "statusLabel": "סטטוס",
+    "reviewNoteLabel": "הערת טיפול: ",
+    "reviewTitle": "טיפול",
+    "alreadyReviewed": "המסמך כבר מסומן כטופל. שליחה חוזרת תעדכן את ההערה.",
+    "noteLabel": "הערה (רשות)",
+    "charCountUnit": "תווים",
+    "doneReviewed": "נשמר. המסמך מסומן כעת כטופל וזמין לצפייה בארכיון.",
+    "doneNeedsReview": "נשמר. המסמך מסומן כעת כדורש טיפול.",
+    "markReviewed": "סימון כטופל",
+    "flagNeedsReview": "סימון כדורש טיפול"
+  },
+  "reopen": {
+    "button": "פתיחה מחדש",
+    "title": "לפתוח מחדש את המסמך?",
+    "description": "{{name}} יחזור ללוח הבקרה כמסמך שאינו מטופל. שם המטפל והערת הטיפול יימחקו.",
+    "confirmWord": "פתיחה",
+    "confirmLabel": "הקלידו “{{word}}” לאישור",
+    "confirm": "פתיחה מחדש",
+    "confirming": "פותח מחדש…"
+  },
+  "errors": {
+    "generic": "משהו השתבש והבקשה לא הושלמה. נסו שוב.",
+    "notFoundOnServer": "המסמך לא נמצא בשרת.",
+    "UNSUPPORTED_FILE_TYPE": "ניתן לעבד רק קבצי PDF, מסמכי Word וקבצי טקסט.",
+    "EMPTY_DOCUMENT": "לא נמצא טקסט קריא — נסו קובץ אחר.",
+    "EXTRACTION_FAILED": "לא ניתן היה לקרוא את המסמך. אפשר לנסות שוב.",
+    "UNAUTHORIZED": "שגיאת תצורה: השרת דחה את פרטי ההזדהות שלנו. לא ניתן לתקן זאת מכאן.",
+    "DOCUMENT_NOT_FOUND": "המסמך כבר לא קיים בגיליון — ייתכן שהוסר."
+  }
+}

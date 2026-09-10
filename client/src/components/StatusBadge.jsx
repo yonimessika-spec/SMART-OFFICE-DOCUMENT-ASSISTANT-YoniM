@@ -1,10 +1,15 @@
+import { useTranslation } from 'react-i18next'
 import { REVIEW_STATUS_STYLES, REVIEW_STATUS_FALLBACK } from '../constants.js'
 
-// Review-status pill for Archive rows. Mirrors UrgencyBadge: pill shape, a small
-// leading dot, colour from a map in constants.js, label text always shown.
-// "Needs Review" carries the warm amber (needs attention); "Reviewed" is muted.
+// Review-status pill. Mirrors UrgencyBadge: pill shape, a small leading dot,
+// colour from a map in constants.js, label text always shown. The raw status
+// value ("Processed" / "Needs Review" / "Reviewed") drives colour + filtering;
+// the label is shown in the UI language via the `status.*` map.
 export default function StatusBadge({ value }) {
-  const label = value || 'Unknown'
+  const { t } = useTranslation()
+  const label = value
+    ? t(`status.${value}`, { defaultValue: value })
+    : t('common.notFound')
   const style = REVIEW_STATUS_STYLES[value] || REVIEW_STATUS_FALLBACK
   return (
     <span

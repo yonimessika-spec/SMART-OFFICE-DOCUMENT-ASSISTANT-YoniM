@@ -1,14 +1,13 @@
+import { useTranslation } from 'react-i18next'
 import { URGENCY_STYLES, URGENCY_FALLBACK } from '../constants.js'
 
 // Coloured urgency badge. SPEC.md F3: the label text is ALWAYS present — the
-// colour is decoration, never the only signal. Unknown values still render as
-// text (SPEC.md §5: display exactly what n8n returns).
-//
-// Styling pass: only the shape/spacing changed (rounder pill, roomier padding,
-// a small leading dot). The colour mapping is unchanged — it comes straight from
-// URGENCY_STYLES in constants.js and must never be altered.
+// colour is decoration, never the only signal. SPEC.md §5: the urgency *value*
+// (High / Medium / Low) is displayed exactly as n8n returns it and is never
+// translated; only the "Urgency:" prefix is localised.
 export default function UrgencyBadge({ value }) {
-  const label = value || 'Not found'
+  const { t } = useTranslation()
+  const displayValue = value || t('common.notFound')
   const style = URGENCY_STYLES[value] || URGENCY_FALLBACK
   return (
     <span
@@ -24,7 +23,7 @@ export default function UrgencyBadge({ value }) {
         className="size-1.5 rounded-full"
         style={{ backgroundColor: style.fg }}
       />
-      Urgency: {label}
+      {t('urgencyBadge.label', { value: displayValue })}
     </span>
   )
 }

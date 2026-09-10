@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { cn } from 'cn'
 import { CloudUpload } from 'lucide-react'
 import { processDocument } from '../api/index.js'
@@ -18,10 +19,7 @@ import {
 import FieldList from '../components/FieldList.jsx'
 import ErrorMessage from '../components/ErrorMessage.jsx'
 
-// F1 Upload + F2 Processing state + F3 Result view.
-// - file picker + drag-drop; only PDF/DOCX/TXT; oversized rejected BEFORE any request
-// - unmistakable in-progress state, Send disabled for the whole request (~90s safe)
-// - result: all 7 fields + file_link + coloured urgency badge, "Not found" shown literally
+// F1 Upload + F2 Processing state + F3 Result view. See src/locales for copy.
 
 const MAX_MB = Math.round(MAX_FILE_BYTES / (1024 * 1024))
 
@@ -35,23 +33,28 @@ function toBase64(file) {
   })
 }
 
+// Returns null, or an i18n key + params describing the client-side rejection.
 function validate(file) {
   if (!ACCEPTED_TYPES[file.type]) {
-    return 'Only PDF, DOCX and TXT files can be processed.'
+    return { key: 'upload.errUnsupported' }
   }
   if (file.size > MAX_FILE_BYTES) {
-    return `That file is ${(file.size / 1024 / 1024).toFixed(1)} MB. The limit is ${MAX_MB} MB.`
+    return {
+      key: 'upload.errTooBig',
+      params: { size: (file.size / 1024 / 1024).toFixed(1), max: MAX_MB },
+    }
   }
   return null
 }
 
 export default function Upload() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const { upsertProcessed } = useDocuments()
   const inputRef = useRef(null)
 
   const [file, setFile] = useState(null)
-  const [localError, setLocalError] = useState(null) // client-side rejection
+  const [localError, setLocalError] = useState(null) // { key, params } | null
   const [dragging, setDragging] = useState(false)
 
   const [phase, setPhase] = useState('idle') // idle | processing | done | error
@@ -120,17 +123,19 @@ export default function Upload() {
     return (
       <section className="flex flex-col gap-6">
         <div>
-          <h1 className="text-2xl">Processed</h1>
+          <h1 className="text-2xl">{t('upload.doneTitle')}</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             {result.notification_sent
-              ? 'Document processed and a notification was sent.'
-              : 'Document processed. No notification was sent.'}
+              ? t('upload.doneNotified')
+              : t('upload.doneNotNotified')}
           </p>
         </div>
 
         <Card>
           <CardHeader>
-            <CardTitle className="truncate">{result.file_name}</CardTitle>
+            <CardTitle dir="auto" className="truncate">
+              {result.file_name}
+            </CardTitle>
             <CardDescription>
               <a
                 href={result.file_link}
@@ -138,7 +143,7 @@ export default function Upload() {
                 rel="noreferrer"
                 className="font-medium text-primary underline-offset-4 hover:underline"
               >
-                Open file
+                {t('common.openFile')}
               </a>
             </CardDescription>
           </CardHeader>
@@ -152,16 +157,14 @@ export default function Upload() {
             type="button"
             onClick={() =>
               navigate(
-                // Same identifier convention as DocumentCard: document_id when
-                // present, file_name as the pre-Workflow-A fallback.
                 `/document/${encodeURIComponent(result.document_id || result.file_name)}`,
               )
             }
           >
-            Open detail view
+            {t('upload.openDetail')}
           </Button>
           <Button type="button" variant="outline" onClick={reset}>
-            Upload another
+            {t('upload.uploadAnother')}
           </Button>
         </div>
       </section>
@@ -170,7 +173,7 @@ export default function Upload() {
 
   return (
     <section className="flex flex-col gap-6">
-      <h1 className="text-2xl">Upload a document</h1>
+      <h1 className="text-2xl">{t('upload.title')}</h1>
 
       <div
         className={cn(
@@ -191,9 +194,9 @@ export default function Upload() {
         onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && inputRef.current?.click()}
       >
         <CloudUpload aria-hidden="true" className="size-8 text-muted-foreground" />
-        <p className="text-sm font-medium">Drag a file here, or click to choose one.</p>
+        <p className="text-sm font-medium">{t('upload.dropzone')}</p>
         <p className="text-xs text-muted-foreground">
-          PDF, DOCX or TXT, up to {MAX_MB} MB
+          <span dir="ltr">PDF, DOCX, TXT</span> · {t('upload.hintSize', { mb: MAX_MB })}
         </p>
         <input
           ref={inputRef}
@@ -206,25 +209,28 @@ export default function Upload() {
 
       {localError && (
         <Alert variant="destructive">
-          <AlertTitle>File not accepted</AlertTitle>
-          <AlertDescription>{localError}</AlertDescription>
+          <AlertTitle>{t('upload.rejectedTitle')}</AlertTitle>
+          <AlertDescription>{t(localError.key, localError.params)}</AlertDescription>
         </Alert>
       )}
 
       {file && (
         <p className="text-sm text-muted-foreground">
-          Selected: <span className="font-medium text-foreground">{file.name}</span>{' '}
-          <span className="tabular-nums">({(file.size / 1024).toFixed(0)} KB)</span>
+          {t('upload.selectedLabel')}{' '}
+          <span dir="auto" className="font-medium text-foreground">
+            {file.name}
+          </span>{' '}
+          <span dir="ltr" className="tabular-nums">
+            ({(file.size / 1024).toFixed(0)} KB)
+          </span>
         </p>
       )}
 
       {phase === 'processing' && (
         <Alert role="status" aria-live="polite">
           <Spinner />
-          <AlertTitle>Processing…</AlertTitle>
-          <AlertDescription>
-            This can take up to 90 seconds. Please keep this tab open.
-          </AlertDescription>
+          <AlertTitle>{t('upload.processingTitle')}</AlertTitle>
+          <AlertDescription>{t('upload.processingBody')}</AlertDescription>
         </Alert>
       )}
 
@@ -238,7 +244,7 @@ export default function Upload() {
 
       <div className="flex flex-wrap gap-3">
         <Button type="button" onClick={onSend} disabled={!file || phase === 'processing'}>
-          {phase === 'processing' ? 'Processing…' : 'Send for processing'}
+          {phase === 'processing' ? t('common.processing') : t('upload.send')}
         </Button>
         {(file || phase === 'error') && (
           <Button
@@ -247,7 +253,7 @@ export default function Upload() {
             onClick={reset}
             disabled={phase === 'processing'}
           >
-            Clear
+            {t('common.clear')}
           </Button>
         )}
       </div>

@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { cn } from 'cn'
-import { ChevronLeft, CircleCheck } from 'lucide-react'
+import { ChevronLeft, ChevronRight, CircleCheck } from 'lucide-react'
 import { reviewDocument } from '../api/index.js'
 import { useDocuments } from '../store.jsx'
 import { buttonVariants, Button } from '@/components/ui/button'
@@ -24,22 +25,17 @@ import {
 } from '@/components/ui/empty'
 import FieldList from '../components/FieldList.jsx'
 import FieldValue from '../components/FieldValue.jsx'
+import StatusBadge from '../components/StatusBadge.jsx'
 import ErrorMessage from '../components/ErrorMessage.jsx'
 
-// F6 Detail view + review.
-// - shows every field for one document
-// - "Mark as reviewed" / "Flag as needs review", with an optional note (<=200 chars)
-// - posts to /api/review; on success { status: "updated" } updates local state
-// - 404 (no matching row) surfaces as a plain sentence (F7)
+// F6 Detail view + review. See src/locales for all UI copy.
 
 const NOTE_MAX = 200
 
 export default function DocumentDetail() {
+  const { t, i18n } = useTranslation()
   const { id } = useParams()
   const { documents, loading, applyReview } = useDocuments()
-  // Match the identifier DocumentCard / Upload put in the URL: prefer
-  // document_id, fall back to file_name while document_id is still empty
-  // (pre-Workflow A). `id` from useParams is already URL-decoded.
   const doc = useMemo(
     () => documents.find((d) => (d.document_id || d.file_name) === id),
     [documents, id],
@@ -48,21 +44,24 @@ export default function DocumentDetail() {
   const [note, setNote] = useState('')
   const [phase, setPhase] = useState('idle') // idle | saving | done | error
   const [error, setError] = useState(null)
-  const [savedAs, setSavedAs] = useState(null) // 'Reviewed' | 'Needs Review' — which action last succeeded
+  const [savedAs, setSavedAs] = useState(null) // 'Reviewed' | 'Needs Review'
 
-  if (loading) return <p className="text-muted-foreground">Loading…</p>
+  // "Back" points in the reading direction: left in LTR, right in RTL.
+  const BackIcon = i18n.dir() === 'rtl' ? ChevronRight : ChevronLeft
+
+  if (loading) return <p className="text-muted-foreground">{t('detail.loading')}</p>
   if (!doc) {
     return (
       <Empty className="border border-border">
         <EmptyHeader>
-          <EmptyTitle>Document not loaded</EmptyTitle>
+          <EmptyTitle>{t('detail.notLoadedTitle')}</EmptyTitle>
           <EmptyDescription>
-            No document with ID “{id}” is loaded.
+            {t('detail.notLoadedBody', { id })}
           </EmptyDescription>
         </EmptyHeader>
         <EmptyContent>
           <Link to="/" className={buttonVariants({ variant: 'outline', size: 'sm' })}>
-            Back to documents
+            {t('detail.backToDocuments')}
           </Link>
         </EmptyContent>
       </Empty>
@@ -111,24 +110,28 @@ export default function DocumentDetail() {
         to="/"
         className={cn(
           buttonVariants({ variant: 'ghost', size: 'sm' }),
-          '-ml-3 self-start text-muted-foreground',
+          '-ms-3 self-start text-muted-foreground',
         )}
       >
-        <ChevronLeft aria-hidden="true" />
-        All documents
+        <BackIcon aria-hidden="true" />
+        {t('detail.allDocuments')}
       </Link>
 
       <Card>
         <CardHeader>
-          <CardTitle className="truncate text-xl">{doc.file_name}</CardTitle>
+          <CardTitle dir="auto" className="truncate text-xl">
+            {doc.file_name}
+          </CardTitle>
           <CardDescription className="flex flex-wrap items-center gap-x-4 gap-y-1">
             <span>
-              {/* received_at is an opaque display string from n8n — show it as-is. */}
-              Received{' '}
-              <span className="text-foreground tabular-nums">{doc.received_at}</span>
+              {/* received_at is an opaque display string from n8n — kept LTR. */}
+              {t('detail.receivedLabel')}{' '}
+              <span dir="ltr" className="text-foreground tabular-nums">
+                {doc.received_at}
+              </span>
             </span>
-            <span className="flex items-center gap-1">
-              Status <FieldValue value={doc.status} />
+            <span className="flex items-center gap-1.5">
+              {t('detail.statusLabel')} <StatusBadge value={doc.status} />
             </span>
             <a
               href={doc.file_link}
@@ -136,7 +139,7 @@ export default function DocumentDetail() {
               rel="noreferrer"
               className="font-medium text-primary underline-offset-4 hover:underline"
             >
-              Open file
+              {t('common.openFile')}
             </a>
           </CardDescription>
         </CardHeader>
@@ -144,7 +147,7 @@ export default function DocumentDetail() {
           <FieldList fields={doc} />
           {doc.review_note ? (
             <p className="mt-4 rounded-lg bg-muted px-4 py-3 text-sm">
-              <span className="text-muted-foreground">Review note: </span>
+              <span className="text-muted-foreground">{t('detail.reviewNoteLabel')}</span>
               <FieldValue value={doc.review_note} />
             </p>
           ) : null}
@@ -153,19 +156,16 @@ export default function DocumentDetail() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Review</CardTitle>
+          <CardTitle className="text-base">{t('detail.reviewTitle')}</CardTitle>
           {alreadyReviewed && phase !== 'done' && (
-            <CardDescription>
-              This document is already marked as Reviewed. Submitting again will
-              update the note.
-            </CardDescription>
+            <CardDescription>{t('detail.alreadyReviewed')}</CardDescription>
           )}
         </CardHeader>
         <CardContent>
           <form onSubmit={onSubmit}>
             <FieldGroup>
               <Field>
-                <FieldLabel htmlFor="review-note">Note (optional)</FieldLabel>
+                <FieldLabel htmlFor="review-note">{t('detail.noteLabel')}</FieldLabel>
                 <Textarea
                   id="review-note"
                   value={note}
@@ -173,8 +173,11 @@ export default function DocumentDetail() {
                   onChange={(e) => setNote(e.target.value)}
                   rows={3}
                 />
-                <FieldDescription className="tabular-nums">
-                  {note.length}/{NOTE_MAX} characters
+                <FieldDescription>
+                  <span dir="ltr" className="tabular-nums">
+                    {note.length}/{NOTE_MAX}
+                  </span>{' '}
+                  {t('detail.charCountUnit')}
                 </FieldDescription>
               </Field>
 
@@ -185,15 +188,15 @@ export default function DocumentDetail() {
                 <p className="flex items-center gap-2 text-sm font-medium">
                   <CircleCheck aria-hidden="true" className="size-4 text-primary" />
                   {savedAs === 'Needs Review'
-                    ? 'Saved. This document is now flagged as Needs Review.'
-                    : 'Saved. This document is now marked as Reviewed. This document is now available to view on Archive.'}
+                    ? t('detail.doneNeedsReview')
+                    : t('detail.doneReviewed')}
                 </p>
               )}
 
               <Field orientation="horizontal">
                 <Button type="submit" disabled={phase === 'saving'}>
                   {phase === 'saving' && <Spinner />}
-                  {phase === 'saving' ? 'Saving…' : 'Mark as reviewed'}
+                  {phase === 'saving' ? t('common.saving') : t('detail.markReviewed')}
                 </Button>
                 <Button
                   type="button"
@@ -202,7 +205,7 @@ export default function DocumentDetail() {
                   disabled={phase === 'saving'}
                 >
                   {phase === 'saving' && <Spinner />}
-                  {phase === 'saving' ? 'Saving…' : 'Flag as needs review'}
+                  {phase === 'saving' ? t('common.saving') : t('detail.flagNeedsReview')}
                 </Button>
               </Field>
             </FieldGroup>
