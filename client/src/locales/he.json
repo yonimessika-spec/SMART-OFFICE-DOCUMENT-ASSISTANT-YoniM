@@ -22,6 +22,7 @@
     "cancel": "ביטול",
     "clear": "ניקוי",
     "clearAll": "ניקוי הכול",
+    "exportCsv": "ייצוא CSV",
     "openFile": "פתיחת הקובץ",
     "pageNotFound": "הדף לא נמצא.",
     "notFound": "לא נמצא",
@@ -75,7 +76,8 @@
     "emptyTitle": "הארכיון ריק",
     "emptyBody": "מסמכים יופיעו כאן לאחר שיסומנו כטופלו.",
     "noMatchesBody": "אין מסמכים בארכיון התואמים לחיפוש.",
-    "reviewedBy": "טופל על ידי {{name}}"
+    "reviewedBy": "טופל על ידי {{name}}",
+    "exportCsv": "ייצוא CSV — ארכיון"
   },
   "upload": {
     "title": "העלאת מסמך",

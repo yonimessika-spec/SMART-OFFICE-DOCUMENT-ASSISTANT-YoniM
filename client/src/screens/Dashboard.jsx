@@ -1,7 +1,9 @@
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { Download } from 'lucide-react'
 import { useDocuments } from '../store.jsx'
 import { matchesQuery } from '../search.js'
+import { downloadCsv, DOCUMENT_CSV_COLUMNS, exportDateStamp } from '../utils/csvExport.js'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
@@ -83,6 +85,11 @@ export default function Dashboard() {
     setQuery('')
     setFilters({ status: ACTIVE })
   }
+  // Export exactly the rows currently visible (filters + search + sort applied).
+  function exportCsv() {
+    if (visible.length === 0) return
+    downloadCsv(`documents-export-${exportDateStamp()}.csv`, visible, DOCUMENT_CSV_COLUMNS)
+  }
 
   if (loading) {
     return (
@@ -102,13 +109,25 @@ export default function Dashboard() {
 
   return (
     <section className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-2xl">{t('dashboard.title')}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {visible.length === documents.length
-            ? t('common.count', { count: documents.length })
-            : t('common.countFiltered', { visible: visible.length, total: documents.length })}
-        </p>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl">{t('dashboard.title')}</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {visible.length === documents.length
+              ? t('common.count', { count: documents.length })
+              : t('common.countFiltered', { visible: visible.length, total: documents.length })}
+          </p>
+        </div>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={exportCsv}
+          disabled={visible.length === 0}
+        >
+          <Download aria-hidden="true" />
+          {t('common.exportCsv')}
+        </Button>
       </div>
 
       <div className="flex flex-col gap-3">

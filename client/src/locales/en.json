@@ -22,6 +22,7 @@
     "cancel": "Cancel",
     "clear": "Clear",
     "clearAll": "Clear all",
+    "exportCsv": "Export CSV",
     "openFile": "Open file",
     "pageNotFound": "Page not found.",
     "notFound": "Not found",
@@ -75,7 +76,8 @@
     "emptyTitle": "Nothing archived yet",
     "emptyBody": "Documents show up here once they’re marked as reviewed.",
     "noMatchesBody": "No archived documents match your search.",
-    "reviewedBy": "Reviewed by {{name}}"
+    "reviewedBy": "Reviewed by {{name}}",
+    "exportCsv": "Export CSV — Archive"
   },
   "upload": {
     "title": "Upload a document",

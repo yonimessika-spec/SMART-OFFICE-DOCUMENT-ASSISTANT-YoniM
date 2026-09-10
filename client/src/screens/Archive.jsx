@@ -1,7 +1,10 @@
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { Download } from 'lucide-react'
 import { useDocuments } from '../store.jsx'
 import { matchesQuery } from '../search.js'
+import { downloadCsv, DOCUMENT_CSV_COLUMNS, exportDateStamp } from '../utils/csvExport.js'
+import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
   Empty,
@@ -30,6 +33,12 @@ export default function Archive() {
     [archived, query],
   )
 
+  // Export exactly the archived rows currently visible (search applied).
+  function exportCsv() {
+    if (visible.length === 0) return
+    downloadCsv(`archive-export-${exportDateStamp()}.csv`, visible, DOCUMENT_CSV_COLUMNS)
+  }
+
   if (loading) {
     return (
       <div className="flex flex-col gap-3">
@@ -47,13 +56,25 @@ export default function Archive() {
 
   return (
     <section className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-2xl">{t('archive.title')}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {visible.length === archived.length
-            ? t('common.count', { count: archived.length })
-            : t('common.countFiltered', { visible: visible.length, total: archived.length })}
-        </p>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl">{t('archive.title')}</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {visible.length === archived.length
+              ? t('common.count', { count: archived.length })
+              : t('common.countFiltered', { visible: visible.length, total: archived.length })}
+          </p>
+        </div>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={exportCsv}
+          disabled={visible.length === 0}
+        >
+          <Download aria-hidden="true" />
+          {t('archive.exportCsv')}
+        </Button>
       </div>
 
       <SearchField value={query} onChange={setQuery} label={t('search.ariaArchive')} />
