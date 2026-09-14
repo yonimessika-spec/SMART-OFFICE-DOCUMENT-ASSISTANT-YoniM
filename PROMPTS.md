@@ -1319,3 +1319,72 @@ nothing to change in the repo, this entry just records what was found and fixed.
 Both are the same class of bug — an n8n node that fails or emits nothing silently
 kills the rest of the chain. Real multi-file / empty-Sheet testing surfaced edge
 cases that single-item happy-path testing never hits.
+
+---
+
+## Entry 20 — Daily Summary screen (2026-09-14)
+
+**Prompt:** Scope, then build, a screen mirroring the Part 1 optional daily
+email — "Document Assistant - Daily Email Summary" — not a new email, a UI view
+of the same content. Investigate the real workflow first (what it actually
+computes/sends, not an assumed version); assess whether it can be built entirely
+from `GET /api/documents` data already fetched client-side, or needs a new
+endpoint; propose a screen modeled directly on the real email content.
+Confirmed decisions going in: every role can view it (same tier as Dashboard,
+no new permission), new nav item "Daily Summary", today's data only, no date
+picker/historical browsing.
+
+**Scoping findings (`daily-summary-scoping.md`):**
+- Read `workflows/Project Part 1 - Document Assistant - Daily Email Summary.json`
+  node by node. The real email: pulls the whole Sheet unfiltered, then a
+  `Filter` node keeps rows where `Received At`'s date portion string-equals
+  `$now.format('dd/MM/yyyy')` — a **string comparison**, not a date-range or
+  since-last-run calculation. The email itself is just a total count plus
+  **three sections grouped only by `Urgency`** (High → Medium → Low), each a
+  4-column table: Type, From (sender), Deadline, Dept.
+- **The brief's own illustrative example list ("count needing review, count by
+  department, past-deadline flag") is broader than what the real email
+  contains** — none of that exists in the actual workflow (`Deadline` is never
+  compared to anything, there's no status/review concept in it at all). Flagged
+  this gap explicitly rather than quietly building the richer version.
+- Every field the email uses (`document_type`, `sender_or_company`, `deadline`,
+  `department`, `urgency`, `received_at`) is already in `GET /api/documents`'s
+  existing response (CONTRACT.md §4) — **no new endpoint, no new n8n webhook,
+  no proxy change, no new permission** (that route is already open to all three
+  roles). Opposite risk profile from the instant-ack/polling scoping pass —
+  nothing here had "no existing pattern to copy."
+
+**What was built:** commit `ecfebe6`, client-only.
+- `client/src/utils/dailySummary.js` (new) — `isToday()` is a direct port of the
+  email's own n8n Filter node (string comparison on `received_at`'s date
+  portion, never a `Date` parse — same rule `received_at` is subject to
+  everywhere else in this app); `groupByUrgency()` buckets already-filtered docs
+  into High/Medium/Low.
+- `client/src/components/DailySummaryRow.jsx` (new) — Type/From/Deadline/Dept,
+  matching the email's real columns exactly, plus the file name as a link to
+  `/document/:id` (the one addition beyond the email — every other list in this
+  app already links its rows the same way).
+- `client/src/screens/DailySummary.jsx` (new) — today's date + total count, one
+  section per non-empty urgency bucket, same loading/empty/error patterns as
+  Dashboard.
+- `App.jsx` — new nav item + route, **ungated**, same tier as Dashboard/Archive.
+- `constants.js` (`URGENCY_ORDER`) + `en.json`/`he.json` (`dailySummary.*` +
+  `nav.dailySummary`, 148 keys each, parity checked).
+
+**Decisions / notes:**
+- **Two small implementation defaults locked in** (flagged as non-blocking in
+  the scoping doc, confirmed before building): urgency sections with zero
+  documents today are **hidden**, not shown empty like the email's tables would
+  be; each row shows **File Name** as its link text, since the email had no
+  per-row link to anchor to but every list in this app already does.
+- Verified against real data on an isolated test proxy (throwaway `users.json`,
+  separate port — `server/.env` and the real `server/users.json` untouched
+  throughout, same isolation pattern as the multi-file-upload testing): the
+  live "today" was correctly empty (no documents received on the day of
+  testing); a faked "today" (`Date` monkey-patched in the browser) against 7
+  real documents showed 4 High + 3 Low with the Medium section correctly
+  hidden, header count matching; verified in both English and Hebrew/RTL (row
+  order, dot-then-heading direction, dates staying LTR); confirmed Admin,
+  Submitter, and Viewer all see the nav item and can open the screen, with
+  Upload/Users still gated exactly as before.
+- No `server/`, `workflows/`, or `CONTRACT.md` changes.

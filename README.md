@@ -17,7 +17,7 @@ Part 1 (the original n8n automation) is documented separately; this README cover
 | F7 | **Error & empty states** | Every failure becomes a plain-language sentence; handles timeout, 4xx/5xx, unreachable server, empty list |
 | F8 | **Config / secrets** | All URLs and secrets in `server/.env` (git-ignored); `server/.env.example` committed with placeholders; `client/.env` never holds a secret |
 
-On top of the F1–F8 baseline this build also adds **login + role-based access control**, **Hebrew / RTL support**, **CSV export**, and **multi-file upload** — each described below.
+On top of the F1–F8 baseline this build also adds **login + role-based access control**, **Hebrew / RTL support**, **CSV export**, **multi-file upload**, and a **Daily Summary** screen — each described below.
 
 ## Architecture
 
@@ -186,6 +186,32 @@ drop several files onto the drop zone at once.
 A single upload is just a batch of one, so there is one code path for both. Same
 role gating as before — Admin and Submitter only.
 
+## Daily Summary
+
+A **Daily Summary** screen, visible to every role (Admin, Submitter, Viewer —
+same access as Dashboard/Archive, no new permission), mirroring what the Part 1
+`Document Assistant - Daily Email Summary` n8n workflow would send if it ran
+right now.
+
+- Built to match that workflow's **actual** content, read directly from the
+  exported workflow JSON rather than assumed: every document whose `Received
+  At` date is today (a string comparison on the date portion, the same way the
+  email's own filter node does it — never a `Date` parse), grouped only by
+  **Urgency** — High → Medium → Low, in that order. An urgency section with
+  zero documents today is hidden rather than shown empty.
+- Each row shows the same four fields the email's table shows — **Type,
+  Sender, Deadline, Department** — plus the file name as a link to the
+  document's detail view (the one thing beyond the email; every other list in
+  this app already links its rows the same way).
+- **Deliberately does not include** a "needs review" count, a department
+  breakdown, or a past-deadline flag — the real Part 1 email doesn't compute
+  any of those either (it only ever groups by urgency and prints the four
+  columns above), so none of them were invented here just because they sounded
+  plausible.
+- Entirely client-side over the existing `GET /api/documents` response — no new
+  proxy route, no new n8n webhook, no `CONTRACT.md` change. Every field it
+  needs was already being returned to every role.
+
 ## n8n workflows
 
 Exported workflow JSON, credentials removed (see `/workflows`):
@@ -224,4 +250,4 @@ silently taking the rest of the execution chain down with it.
 - **Single proxy instance assumed.** The user store is a local JSON file, not safe for multiple proxy processes writing at once.
 - Single shared Header Auth secret across all three n8n webhooks, rather than per-endpoint credentials.
 - No background polling — the client reflects n8n's state only on page load / refresh, not live.
-- Still out of scope for this submission: background job polling, an analytics view, public deployment, and a daily-summary *screen* (the daily email summary runs as a Part 1 n8n workflow, not in the app).
+- Still out of scope for this submission: background job polling, an analytics view, and public deployment.
