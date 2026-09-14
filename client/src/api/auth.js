@@ -6,13 +6,10 @@
 
 import { notifySessionExpired } from './session.js'
 
-const BASE = import.meta.env.VITE_SERVER_BASE_URL
+const BASE = import.meta.env.VITE_SERVER_BASE_URL || ''
 
 async function request(path, { method = 'GET', body } = {}) {
-  if (!BASE) {
-    throw new Error('VITE_SERVER_BASE_URL is not set in client/.env.')
-  }
-
+ 
   let res
   try {
     res = await fetch(`${BASE}${path}`, {

@@ -13,7 +13,7 @@
 
 import { notifySessionExpired } from './session.js'
 
-const SERVER_BASE_URL = import.meta.env.VITE_SERVER_BASE_URL
+const SERVER_BASE_URL = import.meta.env.VITE_SERVER_BASE_URL || ''
 
 // Section 15: every proxy route now requires a valid session cookie. `fetch`
 // only sends that cookie cross-origin with credentials: 'include'. A 401 means
@@ -30,12 +30,7 @@ function handleUnauthorized(res) {
 // Google-Sheet insertion order (oldest first). "Newest first" for the UI is just
 // the reverse — received_at is an opaque display string and is never parsed.
 export async function getDocuments() {
-  if (!SERVER_BASE_URL) {
-    throw new Error(
-      'VITE_SERVER_BASE_URL is not set. Add it to client/.env (e.g. http://localhost:3001).',
-    )
-  }
-
+  
   let res
   try {
     res = await fetch(`${SERVER_BASE_URL}/api/documents`, {
@@ -83,11 +78,6 @@ export async function getDocuments() {
 // Mirrors getDocuments(): no client-side timeout of its own — the ~90 s budget
 // lives in the server's REQUEST_TIMEOUT_MS (it returns 504 if n8n runs long).
 export async function processDocument(payload) {
-  if (!SERVER_BASE_URL) {
-    throw new Error(
-      'VITE_SERVER_BASE_URL is not set. Add it to client/.env (e.g. http://localhost:5055).',
-    )
-  }
 
   let res
   try {
@@ -140,12 +130,7 @@ export async function processDocument(payload) {
 //
 // Same shape/handling as processDocument().
 export async function reviewDocument(payload) {
-  if (!SERVER_BASE_URL) {
-    throw new Error(
-      'VITE_SERVER_BASE_URL is not set. Add it to client/.env (e.g. http://localhost:5055).',
-    )
-  }
-
+ 
   let res
   try {
     res = await fetch(`${SERVER_BASE_URL}/api/review`, {
