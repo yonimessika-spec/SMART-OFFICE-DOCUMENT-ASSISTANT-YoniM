@@ -23,12 +23,11 @@ import ErrorMessage from '../components/ErrorMessage.jsx'
 // utils/dailySummary.js) — a string comparison on received_at's date portion,
 // not a Date parse, for the same reason received_at is never parsed elsewhere.
 // A section with zero documents today is omitted rather than shown empty.
-
-const SECTION_LABEL_KEY = {
-  High: 'dailySummary.sectionHigh',
-  Medium: 'dailySummary.sectionMedium',
-  Low: 'dailySummary.sectionLow',
-}
+//
+// Section headings reuse UrgencyBadge's own `urgencyBadge.label` key ("Urgency:
+// {{value}}") so a given urgency level reads identically everywhere in the app
+// (Dashboard, Archive, badges, and here) — not a bespoke "Urgent"/"Normal"/
+// "Informational" vocabulary local to this screen.
 
 export default function DailySummary() {
   const { t } = useTranslation()
@@ -92,7 +91,7 @@ export default function DailySummary() {
                       style={{ backgroundColor: style.fg }}
                     />
                     <h2 className="text-base font-semibold" style={{ color: style.fg }}>
-                      {t(SECTION_LABEL_KEY[urgency])}
+                      {t('urgencyBadge.label', { value: urgency })}
                     </h2>
                     <span className="text-sm text-muted-foreground">
                       {t('common.count', { count: buckets[urgency].length })}

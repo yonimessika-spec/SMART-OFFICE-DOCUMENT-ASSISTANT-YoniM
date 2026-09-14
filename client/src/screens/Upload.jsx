@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { cn } from 'cn'
-import { CloudUpload } from 'lucide-react'
+import { CloudUpload, LayoutDashboard } from 'lucide-react'
 import { processDocument } from '../api/index.js'
 import { ACCEPTED_TYPES, MAX_FILE_BYTES, MAX_BATCH_FILES } from '../constants.js'
 import { useDocuments } from '../store.jsx'
@@ -48,6 +49,7 @@ const newId = () =>
 
 export default function Upload() {
   const { t } = useTranslation()
+  const navigate = useNavigate()
   const { user } = useAuth()
   const { upsertProcessed } = useDocuments()
   const inputRef = useRef(null)
@@ -259,9 +261,15 @@ export default function Upload() {
               : t('upload.sendMany', { count: queuedCount })}
           </Button>
         ) : batchDone ? (
-          <Button type="button" onClick={reset}>
-            {t('upload.uploadAnother')}
-          </Button>
+          <>
+            <Button type="button" onClick={reset}>
+              {t('upload.uploadAnother')}
+            </Button>
+            <Button type="button" variant="outline" onClick={() => navigate('/')}>
+              <LayoutDashboard aria-hidden="true" />
+              {t('upload.viewInDashboard')}
+            </Button>
+          </>
         ) : (
           <Button type="button" disabled>
             <Spinner />

@@ -106,10 +106,7 @@
   "dailySummary": {
     "title": "סיכום יומי",
     "emptyTitle": "אין מסמכים היום",
-    "emptyBody": "עדיין לא התקבלו מסמכים היום.",
-    "sectionHigh": "דחוף",
-    "sectionMedium": "רגיל",
-    "sectionLow": "מידע"
+    "emptyBody": "עדיין לא התקבלו מסמכים היום."
   },
   "archive": {
     "title": "ארכיון",
@@ -143,7 +140,8 @@
     "retry": "נסו שוב",
     "removeFile": "הסרת {{name}}",
     "openDetail": "פתיחת תצוגה מפורטת",
-    "uploadAnother": "העלאת קבצים נוספים"
+    "uploadAnother": "העלאת קבצים נוספים",
+    "viewInDashboard": "צפייה בלוח הבקרה"
   },
   "detail": {
     "loading": "טוען…",

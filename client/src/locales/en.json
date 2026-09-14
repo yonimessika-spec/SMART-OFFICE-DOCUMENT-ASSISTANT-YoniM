@@ -106,10 +106,7 @@
   "dailySummary": {
     "title": "Daily Summary",
     "emptyTitle": "No documents today",
-    "emptyBody": "No documents have been received today yet.",
-    "sectionHigh": "Urgent",
-    "sectionMedium": "Normal",
-    "sectionLow": "Informational"
+    "emptyBody": "No documents have been received today yet."
   },
   "archive": {
     "title": "Archive",
@@ -143,7 +140,8 @@
     "retry": "Retry",
     "removeFile": "Remove {{name}}",
     "openDetail": "Open detail view",
-    "uploadAnother": "Upload more"
+    "uploadAnother": "Upload more",
+    "viewInDashboard": "View in Dashboard"
   },
   "detail": {
     "loading": "Loading…",
