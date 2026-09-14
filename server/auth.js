@@ -23,7 +23,7 @@ function baseCookieOptions() {
   return {
     httpOnly: true,
     secure: NODE_ENV === 'production',
-    sameSite: 'lax',
+    sameSite: NODE_ENV === 'production' ? 'none' : 'lax',
     path: '/',
   }
 }
