@@ -12,6 +12,7 @@ import { Spinner } from '@/components/ui/spinner'
 import Dashboard from './screens/Dashboard.jsx'
 import Upload from './screens/Upload.jsx'
 import Archive from './screens/Archive.jsx'
+import DailySummary from './screens/DailySummary.jsx'
 import DocumentDetail from './screens/DocumentDetail.jsx'
 import Login from './screens/Login.jsx'
 import Users from './screens/Users.jsx'
@@ -121,6 +122,9 @@ export default function App() {
               <NavLink to="/archive" className={navLink}>
                 {t('nav.archive')}
               </NavLink>
+              <NavLink to="/daily-summary" className={navLink}>
+                {t('nav.dailySummary')}
+              </NavLink>
               {can(role, 'upload') && (
                 <NavLink to="/upload" className={navLink}>
                   {t('nav.upload')}
@@ -139,6 +143,7 @@ export default function App() {
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/archive" element={<Archive />} />
+            <Route path="/daily-summary" element={<DailySummary />} />
             <Route
               path="/upload"
               element={can(role, 'upload') ? <Upload /> : <Navigate to="/" replace />}

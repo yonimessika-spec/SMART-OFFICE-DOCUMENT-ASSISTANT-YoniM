@@ -6,6 +6,7 @@
     "brand": "המשרד החכם",
     "dashboard": "לוח בקרה",
     "archive": "ארכיון",
+    "dailySummary": "סיכום יומי",
     "upload": "העלאה",
     "users": "משתמשים",
     "mockPrefix": "מדומה:"
@@ -101,6 +102,14 @@
     "emptyTitle": "אין עדיין מסמכים",
     "emptyBody": "עדיין לא עובדו מסמכים.",
     "noMatchesBody": "אין מסמכים התואמים לחיפוש ולסינון."
+  },
+  "dailySummary": {
+    "title": "סיכום יומי",
+    "emptyTitle": "אין מסמכים היום",
+    "emptyBody": "עדיין לא התקבלו מסמכים היום.",
+    "sectionHigh": "דחוף",
+    "sectionMedium": "רגיל",
+    "sectionLow": "מידע"
   },
   "archive": {
     "title": "ארכיון",

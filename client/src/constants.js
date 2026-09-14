@@ -28,6 +28,10 @@ export const URGENCY_STYLES = {
 }
 export const URGENCY_FALLBACK = { bg: '#eee', fg: '#333', border: '#999' }
 
+// Section order for the Daily Summary screen — mirrors the Part 1 daily email
+// exactly (Urgent -> Normal -> Informational).
+export const URGENCY_ORDER = ['High', 'Medium', 'Low']
+
 // Review-status pill colours for StatusBadge (Dashboard + Archive rows).
 // Same shape as URGENCY_STYLES. "Needs Review" reuses the warm amber already
 // defined for Medium urgency — same palette, no new colour — so it reads as
