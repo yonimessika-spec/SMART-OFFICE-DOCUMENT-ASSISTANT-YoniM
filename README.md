@@ -114,7 +114,7 @@ The whole app is behind a login — no anonymous access to any screen.
 ### How login works
 
 - `POST /auth/login` checks the username/password (passwords are bcrypt-hashed; plaintext is never stored, logged, or returned) and issues a JWT.
-- The JWT is set in an **httpOnly, SameSite=Lax cookie** (`Secure` when `NODE_ENV=production`). It is never in the response body and never in `localStorage`.
+- The JWT is set in an httpOnly cookie — `SameSite=Lax` in development, `SameSite=None; Secure` in production (required for the cross-origin Netlify↔Render setup; the client also proxies API calls through Netlify redirects to keep this same-site in practice). It is never in the response body and never in `localStorage`.
 - Sessions last **8 hours**. An expired or invalid token returns `401`, clears the cookie, and the client drops back to the login screen.
 - `POST /auth/logout` clears the cookie.
 - On every request the proxy verifies the token, then re-reads the user's role from the store — so when an Admin changes someone's role it takes effect on that user's **next request**, with no forced logout.
@@ -250,4 +250,8 @@ silently taking the rest of the execution chain down with it.
 - **Single proxy instance assumed.** The user store is a local JSON file, not safe for multiple proxy processes writing at once.
 - Single shared Header Auth secret across all three n8n webhooks, rather than per-endpoint credentials.
 - No background polling — the client reflects n8n's state only on page load / refresh, not live.
-- Still out of scope for this submission: background job polling, an analytics view, and public deployment.
+
+## Live Deployment
+   - App: https://document-assistant-ym.netlify.app/
+   - API: https://smart-office-document-assistant-yonim.onrender.com (Render, cold start ~30-60s if idle)
+   - Auto-deploys from `master` on every push (Netlify + Render both connected to this repo)
