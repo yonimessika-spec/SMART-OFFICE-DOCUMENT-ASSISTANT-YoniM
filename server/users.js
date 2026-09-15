@@ -191,3 +191,20 @@ export async function seedAdminIfEmpty({ username, password }) {
   await persist()
   return `seeded initial Admin "${name}"`
 }
+
+// Additional seed users: create any of these that don't already exist, every
+// boot — not just on an empty store, since Admin will already be there from
+// seedAdminIfEmpty. Used to survive Render's free-tier container resets
+// (redeploys / idle spin-down wipe users.json, but env vars persist).
+// Silently skips any entry missing a username or password.
+export async function seedExtraUsersIfMissing(users) {
+  const created = []
+  for (const { username, password, role } of users) {
+    const name = String(username || '').trim()
+    if (!name || !password) continue
+    if (findByUsername(name)) continue
+    await createUser({ username: name, password, role })
+    created.push(name)
+  }
+  return created
+}

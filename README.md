@@ -250,6 +250,7 @@ silently taking the rest of the execution chain down with it.
 - **Single proxy instance assumed.** The user store is a local JSON file, not safe for multiple proxy processes writing at once.
 - Single shared Header Auth secret across all three n8n webhooks, rather than per-endpoint credentials.
 - No background polling — the client reflects n8n's state only on page load / refresh, not live.
+- **User store resets on redeploy or idle spin-down.** `server/users.json` lives on Render's free-tier container filesystem, not persistent across restarts — only users seeded via env vars survive. A production setup would use a real database or persistent disk.
 
 ## Live Deployment
    - App: https://document-assistant-ym.netlify.app/

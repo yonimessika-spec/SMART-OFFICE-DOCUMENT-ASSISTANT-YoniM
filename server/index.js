@@ -38,6 +38,7 @@ import {
   deleteUser,
   setRole,
   seedAdminIfEmpty,
+  seedExtraUsersIfMissing,
 } from './users.js'
 
 const {
@@ -50,6 +51,10 @@ const {
   CLIENT_ORIGIN,
   SEED_ADMIN_USERNAME,
   SEED_ADMIN_PASSWORD,
+  SEED_SUBMITTER_USERNAME,
+  SEED_SUBMITTER_PASSWORD,
+  SEED_VIEWER_USERNAME,
+  SEED_VIEWER_PASSWORD,
   REQUEST_TIMEOUT_MS = '90000',
   PORT = '3001',
 } = process.env
@@ -255,6 +260,22 @@ try {
 } catch (err) {
   console.error(`[server] ${err.message}`)
   process.exit(1)
+}
+
+// Recovery seeds only (Submitter + Viewer) — unlike the Admin seed above, a
+// problem here must never take the server down: these exist to survive
+// Render's free-tier container resets, not as the only way in. Any missing
+// username/password pair is silently skipped inside seedExtraUsersIfMissing;
+// this catch is for the unexpected case (e.g. a malformed value that fails
+// createUser's own validation).
+try {
+  const extraCreated = await seedExtraUsersIfMissing([
+    { username: SEED_SUBMITTER_USERNAME, password: SEED_SUBMITTER_PASSWORD, role: 'Submitter' },
+    { username: SEED_VIEWER_USERNAME, password: SEED_VIEWER_PASSWORD, role: 'Viewer' },
+  ])
+  if (extraCreated.length) console.log(`[server] seeded extra users: ${extraCreated.join(', ')}`)
+} catch (err) {
+  console.error(`[server] extra user seed skipped: ${err.message}`)
 }
 
 app.listen(Number(PORT), () => {
