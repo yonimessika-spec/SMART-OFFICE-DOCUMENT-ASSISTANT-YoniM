@@ -11,22 +11,39 @@ import { setSessionExpiredHandler } from '../api/session.js'
 
 const AuthContext = createContext(null)
 
+// How long to wait before assuming this is a Render cold start, not a normal load.
+const SLOW_WAKE_MS = 5000
+
 export function AuthProvider({ children }) {
   const location = useLocation()
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [slowWake, setSlowWake] = useState(false)
 
   // Initial "am I logged in?" probe + wire the 401 bridge from the fetch layer.
   useEffect(() => {
     setSessionExpiredHandler(() => setUser(null))
     let alive = true
+
+    const slowWakeTimer = setTimeout(() => {
+      if (alive) setSlowWake(true)
+    }, SLOW_WAKE_MS)
+
     authApi
       .fetchMe()
       .then((d) => alive && setUser(d.user))
       .catch(() => alive && setUser(null))
-      .finally(() => alive && setLoading(false))
+      .finally(() => {
+        clearTimeout(slowWakeTimer)
+        if (alive) {
+          setLoading(false)
+          setSlowWake(false)
+        }
+      })
+
     return () => {
       alive = false
+      clearTimeout(slowWakeTimer)
     }
   }, [])
 
@@ -62,7 +79,7 @@ export function AuthProvider({ children }) {
   }, [])
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout }}>
+    <AuthContext.Provider value={{ user, loading, slowWake, login, logout }}>
       {children}
     </AuthContext.Provider>
   )

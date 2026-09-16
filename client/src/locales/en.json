@@ -62,7 +62,8 @@
     "count_one": "{{count}} document",
     "count_other": "{{count}} documents",
     "countFiltered": "{{visible}} of {{total}} documents",
-    "noMatchesTitle": "No matches"
+    "noMatchesTitle": "No matches",
+    "wakingUp": "Waking up the server - this can take up to a minute on the first load."
   },
   "status": {
     "Processed": "Processed",

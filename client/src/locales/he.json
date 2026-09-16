@@ -62,7 +62,8 @@
     "count_one": "מסמך אחד",
     "count_other": "{{count}} מסמכים",
     "countFiltered": "{{visible}} מתוך {{total}} מסמכים",
-    "noMatchesTitle": "אין תוצאות"
+    "noMatchesTitle": "אין תוצאות",
+    "wakingUp": "מעיר את השרת - זה יכול לקחת עד דקה בטעינה הראשונה."
   },
   "status": {
     "Processed": "מעובד",

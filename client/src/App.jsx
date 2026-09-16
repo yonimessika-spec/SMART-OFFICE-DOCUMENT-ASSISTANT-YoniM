@@ -35,7 +35,7 @@ const navLink = ({ isActive }) =>
 
 export default function App() {
   const { t, i18n } = useTranslation()
-  const { user, loading, logout } = useAuth()
+  const { user, loading, slowWake, logout } = useAuth()
 
   const current = i18n.resolvedLanguage === 'he' ? 'he' : 'en'
   const other = current === 'he' ? 'en' : 'he'
@@ -43,8 +43,13 @@ export default function App() {
   // Session still being resolved on first load.
   if (loading) {
     return (
-      <div className="flex min-h-dvh items-center justify-center">
+      <div className="flex min-h-dvh flex-col items-center justify-center gap-3">
         <Spinner className="size-6 text-muted-foreground" />
+        {slowWake && (
+          <p className="max-w-xs text-center text-sm text-muted-foreground">
+            {t('common.wakingUp')}
+          </p>
+        )}
       </div>
     )
   }
