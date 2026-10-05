@@ -114,6 +114,30 @@ const MIGRATIONS = [
   // Sessions issued before this moment are rejected (see authRequired). NULL means
   // the password was never changed through the app, so every session is accepted.
   `ALTER TABLE users ADD COLUMN IF NOT EXISTS password_changed_at timestamptz`,
+  // Review requests: who asked whom to look at which document. The document's own
+  // status stays in the Sheet; these tables only record the requests. The users
+  // FKs are SET NULL so deleting an account keeps the history (shown as removed).
+  `CREATE TABLE IF NOT EXISTS review_requests (
+     id                    text PRIMARY KEY,
+     document_id           text NOT NULL,
+     file_name             text NOT NULL,
+     requested_by_user_id  text REFERENCES users(id) ON DELETE SET NULL,
+     requested_by_username text NOT NULL,
+     message               text NOT NULL DEFAULT '' CHECK (char_length(message) <= 1000),
+     created_at            timestamptz NOT NULL DEFAULT now()
+   )`,
+  `CREATE INDEX IF NOT EXISTS review_requests_document_idx ON review_requests (document_id, created_at DESC)`,
+  `CREATE TABLE IF NOT EXISTS review_request_recipients (
+     id           text PRIMARY KEY,
+     request_id   text NOT NULL REFERENCES review_requests(id) ON DELETE CASCADE,
+     user_id      text REFERENCES users(id) ON DELETE SET NULL,
+     username     text NOT NULL,
+     email        text NOT NULL,
+     role         text NOT NULL,
+     email_status text NOT NULL CHECK (email_status IN ('sent', 'failed', 'skipped')),
+     emailed_at   timestamptz
+   )`,
+  `CREATE INDEX IF NOT EXISTS review_request_recipients_request_idx ON review_request_recipients (request_id)`,
 ]
 
 export async function migrate() {
