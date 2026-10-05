@@ -182,8 +182,12 @@ export async function createPendingUser({ username, email, role }) {
 async function insertSeedUser({ username, email, password, role }, client = null) {
   const name = String(username || '').trim()
   validateUsername(name)
-  if (!password || String(password).length < 8) {
-    throw badRequest('Seed passwords must be at least 8 characters.')
+  // No minimum length here: seed passwords are the operator's own env values and
+  // existing sign-ins (for example a reviewer's) must keep working as they are.
+  // The 8-character rule applies to passwords users choose in the app.
+  if (!password) throw badRequest('A seed password is empty.')
+  if (Buffer.byteLength(String(password), 'utf8') > 72) {
+    throw badRequest('A seed password is longer than 72 bytes.')
   }
   const mail = email ? normalizeEmail(email, { allowPlaceholder: true }) : placeholderEmailFor(name)
   const hash = await bcrypt.hash(String(password), BCRYPT_ROUNDS)
@@ -334,8 +338,20 @@ export async function seedOnBoot({ admin, others }) {
     try {
       for (const seed of [{ ...admin, role: 'Admin' }, ...others]) {
         if (!seed.username || !seed.password) continue
-        const created = await insertSeedUser(seed)
-        result.seeded.push(created.username)
+        // The Admin seed is required, so its failure stops the boot. A bad optional
+        // Submitter/Viewer seed must never take the deploy down: log it and go on.
+        if (seed.role === 'Admin') {
+          const created = await insertSeedUser(seed)
+          result.seeded.push(created.username)
+          continue
+        }
+        try {
+          const created = await insertSeedUser(seed)
+          result.seeded.push(created.username)
+        } catch (err) {
+          if (err?.code === '23505') throw err
+          console.error(`[server] seed for "${seed.username}" skipped: ${err.message}`)
+        }
       }
     } catch (err) {
       // Two instances booting at once on an empty table: the loser hits a unique

@@ -80,6 +80,7 @@ Admin only: `GET|POST /auth/users`, `PATCH|DELETE /auth/users/:id`,
 - **Boot order:** connect + migrate (5 attempts, 4s apart, for Neon wake-up) -> if still
   unreachable log a clear error and `exit(1)`, no fallback -> seed -> placeholder warning
   -> listen.
+- **Seed passwords have no minimum length** (env values keep working as they are, for example an existing reviewer sign-in); the 8-character rule applies to passwords chosen in the app. A bad optional Submitter/Viewer seed is logged and skipped instead of stopping the boot; only the Admin seed is fatal. Found when a 7-character seed password aborted the first boot against the dev branch.
 - **Seeding** runs only when the table is empty (all three env users, Active, no email
   sent) or when there is no Admin (restore the env Admin; if that username exists as
   another role it is promoted and its password reset to the env value). A user an Admin
