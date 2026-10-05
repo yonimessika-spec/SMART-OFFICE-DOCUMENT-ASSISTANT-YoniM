@@ -54,7 +54,7 @@ function emailError(code, message) {
 export async function sendEmail({ to, subject, html, replyTo, consoleNote }) {
   const mode = emailMode()
   if (mode === 'console') {
-    console.log(`[email:console] To: ${to} | Subject: ${subject}`)
+    console.log(`[email:console] To: ${to} | Subject: ${subject}${replyTo ? ` | Reply-To: ${replyTo}` : ''}`)
     if (consoleNote) console.log(`[email:console] ${consoleNote}`)
     return { mode }
   }
@@ -98,13 +98,18 @@ export async function sendEmail({ to, subject, html, replyTo, consoleNote }) {
 const esc = (s) =>
   String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c])
 
-function layout(title, bodyHtml) {
+const DEFAULT_FOOTER =
+  'Smart Office Document Assistant. If you were not expecting this email you can ignore it; nothing changes until the link is used.'
+
+// `preface` (optional, already-safe HTML) is rendered before the title, so it is the
+// very first thing in the message.
+function layout(title, bodyHtml, footer = DEFAULT_FOOTER, preface = '') {
   return `<!doctype html>
 <html><body style="margin:0;padding:24px;background:#f5f5f5;font-family:Arial,Helvetica,sans-serif;color:#1a1a1a;">
 <div style="max-width:520px;margin:0 auto;background:#ffffff;border:1px solid #e5e5e5;border-radius:8px;padding:28px;">
-<h2 style="margin:0 0 16px 0;font-size:20px;">${esc(title)}</h2>
+${preface}<h2 style="margin:0 0 16px 0;font-size:20px;">${esc(title)}</h2>
 ${bodyHtml}
-<p style="color:#888888;font-size:12px;margin:24px 0 0 0;">Smart Office Document Assistant. If you were not expecting this email you can ignore it; nothing changes until the link is used.</p>
+<p style="color:#888888;font-size:12px;margin:24px 0 0 0;">${esc(footer)}</p>
 </div></body></html>`
 }
 
@@ -140,4 +145,74 @@ ${button(link, 'Choose a new password')}
 <p style="font-size:13px;color:#555555;">If you do not see this email, check your spam folder.</p>`,
   )
   return { subject, html }
+}
+
+
+// ---- review request emails -------------------------------------------------
+
+// A header value must be one line; strip control characters and cap the length.
+const oneLine = (v, max = 150) =>
+  String(v)
+    .replace(/[\u0000-\u001f\u007f]+/g, ' ')
+    .trim()
+    .slice(0, max)
+
+const dash = (v) => (String(v || '').trim() ? esc(v) : '-')
+
+function fieldRow(label, value) {
+  return `<tr><td style="padding:6px 12px 6px 0;color:#666666;vertical-align:top;white-space:nowrap;">${esc(label)}</td><td style="padding:6px 0;vertical-align:top;">${dash(value)}</td></tr>`
+}
+
+// Built only from structured data. Every user-supplied value (file name, message,
+// extracted fields, usernames) goes through esc(), so no raw HTML from any of them
+// reaches the email. No Drive link, no token, no password.
+//   role:      recipient role; Viewers get the read-only wording
+//   pending:   recipient has not set a password yet
+//   requester: { username }   the person asking (named in the text)
+//   contact:   { username }   who replies reach (the requester, unless that account is gone)
+//   doc:       fields fetched from the Sheet by the server
+export function buildReviewRequestEmail({ role, pending, requester, contact = requester, message, doc, link }) {
+  const isViewer = role === 'Viewer'
+  const fileName = oneLine(doc.file_name) || 'document'
+  const subject = isViewer ? `For your attention: ${fileName}` : `Review requested: ${fileName}`
+  const lead = isViewer
+    ? `${esc(requester.username)} would like to draw your attention to a document.`
+    : `${esc(requester.username)} has asked you to review a document.`
+
+  const pendingNote = pending
+    ? `<p style="margin:0 0 16px 0;padding:10px 12px;background:#fff4e5;border-radius:6px;">You need to set your password first. Check your invitation email, or ask the administrator to resend it.</p>`
+    : ''
+  const msg = String(message || '').trim()
+  const messageBlock = msg
+    ? `<p style="margin:16px 0 4px 0;color:#666666;font-size:13px;">Message from ${esc(requester.username)}</p>
+<p style="margin:0;padding:10px 12px;background:#f5f5f5;border-radius:6px;">${esc(msg).replace(/\r?\n/g, '<br>')}</p>`
+    : ''
+  const replyLine = isViewer
+    ? `<p style="margin:16px 0 0 0;">Reply to this email to send your feedback to ${esc(contact.username)}.</p>`
+    : ''
+
+  const html = layout(
+    isViewer ? 'For your attention' : 'Review requested',
+    `<p style="margin:0;">${lead}</p>
+<p style="margin:12px 0 0 0;font-weight:bold;word-break:break-word;">${esc(fileName)}</p>
+${messageBlock}
+<table style="margin:16px 0 0 0;border-collapse:collapse;font-size:14px;">
+${fieldRow('Type', doc.document_type)}
+${fieldRow('Sender', doc.sender_or_company)}
+${fieldRow('Summary', doc.summary)}
+${fieldRow('Requested action', doc.requested_action)}
+${fieldRow('Deadline', doc.deadline)}
+${fieldRow('Urgency', doc.urgency)}
+</table>
+${button(link, isViewer ? 'Open document (read-only)' : 'Open and review')}
+${replyLine}
+<p style="font-size:13px;color:#555555;margin:16px 0 0 0;">If you do not see this email, check your spam folder.</p>`,
+    'Smart Office Document Assistant.',
+    pendingNote,
+  )
+  return { subject, html }
+}
+
+export function documentLink(documentId) {
+  return `${appBaseUrl()}/document/${encodeURIComponent(documentId)}`
 }
