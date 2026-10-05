@@ -8,7 +8,7 @@ import { notifySessionExpired } from './session.js'
 
 const BASE = import.meta.env.VITE_SERVER_BASE_URL || ''
 
-async function request(path, { method = 'GET', body } = {}) {
+export async function request(path, { method = 'GET', body } = {}) {
  
   let res
   try {
