@@ -51,11 +51,35 @@ export const fetchMe = () => request('/auth/me')
 // --- Admin-only user management ---
 export const listUsers = () => request('/auth/users')
 
-export const createUser = ({ username, password, role }) =>
-  request('/auth/users', { method: 'POST', body: { username, password, role } })
+// Resolves { user, email } where email is { status: 'sent' | 'logged' | 'failed', code?, message? }.
+// The user is created Pending and gets an invite link; no password is chosen here.
+export const createUser = ({ username, email, role }) =>
+  request('/auth/users', { method: 'POST', body: { username, email, role } })
 
 export const setUserRole = (id, role) =>
   request(`/auth/users/${encodeURIComponent(id)}`, { method: 'PATCH', body: { role } })
 
+// Resolves { user, email? }; `email` is present when a pending user's address
+// changed and a fresh invite was sent to it.
+export const setUserEmail = (id, email) =>
+  request(`/auth/users/${encodeURIComponent(id)}`, { method: 'PATCH', body: { email } })
+
+export const resendInvite = (id) =>
+  request(`/auth/users/${encodeURIComponent(id)}/resend-invite`, { method: 'POST' })
+
+export const resetUserPassword = (id) =>
+  request(`/auth/users/${encodeURIComponent(id)}/reset-password`, { method: 'POST' })
+
 export const deleteUser = (id) =>
   request(`/auth/users/${encodeURIComponent(id)}`, { method: 'DELETE' })
+
+// --- Public: set a password from an emailed link ---
+export const validateSetPasswordToken = (token) =>
+  request(`/auth/set-password/validate?token=${encodeURIComponent(token)}`)
+
+export const setPassword = (token, password) =>
+  request('/auth/set-password', { method: 'POST', body: { token, password } })
+
+// --- Signed-in user changes their own password ---
+export const changePassword = (currentPassword, newPassword) =>
+  request('/auth/change-password', { method: 'POST', body: { currentPassword, newPassword } })

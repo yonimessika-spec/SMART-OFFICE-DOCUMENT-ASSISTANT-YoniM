@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { useLocation } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext.jsx'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -13,6 +14,8 @@ import { Field, FieldGroup, FieldLabel } from '@/components/ui/field'
 export default function Login() {
   const { t } = useTranslation()
   const { login } = useAuth()
+  // Set by the set-password page after a successful save.
+  const passwordSet = Boolean(useLocation().state?.passwordSet)
 
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
@@ -28,7 +31,13 @@ export default function Login() {
       await login(username.trim(), password)
       // AuthContext now has the user; App re-renders into the app.
     } catch (err) {
-      setErrorKey(err?.code === 'BAD_CREDENTIALS' ? 'auth.badCredentials' : 'errors.generic')
+      setErrorKey(
+        err?.code === 'BAD_CREDENTIALS'
+          ? 'auth.badCredentials'
+          : err?.code === 'RATE_LIMITED'
+            ? 'errors.RATE_LIMITED'
+            : 'errors.generic',
+      )
       setPhase('error')
     }
   }
@@ -74,6 +83,12 @@ export default function Login() {
                   required
                 />
               </Field>
+
+              {passwordSet && phase !== 'error' && (
+                <Alert>
+                  <AlertDescription>{t('auth.passwordSet')}</AlertDescription>
+                </Alert>
+              )}
 
               {phase === 'error' && errorKey && (
                 <Alert variant="destructive">
