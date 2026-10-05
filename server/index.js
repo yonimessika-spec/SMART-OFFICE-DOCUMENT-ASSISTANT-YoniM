@@ -10,12 +10,14 @@
 //   GET  /api/documents  ->  {N8N_BASE_URL}{N8N_DOCUMENTS_PATH}   any role
 //   POST /api/process    ->  {N8N_BASE_URL}{N8N_PROCESS_PATH}     Admin | Submitter
 //   POST /api/review     ->  {N8N_BASE_URL}{N8N_REVIEW_PATH}      Admin | Submitter
+//   POST|GET /api/review-requests, POST /api/review-requests/:id/resend   (reviewRoutes.js)
 //
 // Auth routes:
 //   POST /auth/login     POST /auth/logout     GET /auth/me
 //   POST /auth/change-password                                    any signed-in user
 //   GET  /auth/set-password/validate   POST /auth/set-password    public (token link)
 //   GET/POST /auth/users   PATCH/DELETE /auth/users/:id           Admin only
+//   GET  /auth/users/directory                                    Admin | Submitter
 //   POST /auth/users/:id/resend-invite  POST /auth/users/:id/reset-password   Admin only
 //
 // Users live in Postgres (db.js / users.js); emails go out through an n8n webhook
@@ -37,6 +39,7 @@ import {
   ASSIGNABLE_ROLES,
   publicUser,
   listUsers,
+  listDirectory,
   findByUsername,
   verifyPassword,
   createPendingUser,
@@ -55,6 +58,7 @@ import { initDb } from './db.js'
 import { issueToken, peekToken } from './tokens.js'
 import { sendEmail, buildPasswordEmail, setPasswordLink, emailMode } from './email.js'
 import { rateLimit, clientIp, bodyUsername } from './rateLimit.js'
+import reviewRequestsRouter from './reviewRoutes.js'
 
 const {
   N8N_BASE_URL,
@@ -285,6 +289,17 @@ async function deliverPasswordLink(user, purpose) {
   }
 }
 
+// GET /auth/users/directory  ->  { users: [ { id, username, role, hasEmail, pending } ] }
+// For the review-request recipient picker. Admin and Submitter only; carries no email
+// address, hash or token. The full list below stays Admin-only.
+app.get('/auth/users/directory', authRequired, requireRole('Admin', 'Submitter'), async (_req, res) => {
+  try {
+    return res.json({ users: await listDirectory() })
+  } catch (err) {
+    return sendError(res, err)
+  }
+})
+
 // GET /auth/users  ->  { users: [ { id, username, email, role, status, ... } ] }
 app.get('/auth/users', adminOnly, async (_req, res) => {
   try {
@@ -427,6 +442,9 @@ app.post(
   (req, res) =>
     forwardToN8n(`${N8N_BASE_URL}${N8N_REVIEW_PATH}`, { method: 'POST', body: req.body }, res),
 )
+
+// Review requests: emailed "please look at this document" messages (reviewRoutes.js).
+app.use('/api/review-requests', reviewRequestsRouter)
 
 // Lightweight liveness check (no auth, no database).
 app.get('/health', (_req, res) => res.json({ ok: true }))

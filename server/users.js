@@ -116,6 +116,30 @@ export async function listUsers() {
   return rows.map((r) => publicUser(rowToUser(r)))
 }
 
+// Minimal list for the review-request recipient picker (Admin and Submitter). No
+// email address, no hash, no token: just enough to choose a person. A placeholder
+// address shows up as hasEmail: false, so it cannot be selected.
+export async function listDirectory() {
+  const { rows } = await query('SELECT * FROM users ORDER BY lower(username)')
+  return rows.map((r) => {
+    const u = rowToUser(r)
+    return {
+      id: u.id,
+      username: u.username,
+      role: u.role,
+      hasEmail: !isPlaceholderEmail(u.email),
+      pending: !u.passwordHash,
+    }
+  })
+}
+
+// Several users by id, in one query (recipient lookup).
+export async function findManyByIds(ids) {
+  if (!ids.length) return []
+  const { rows } = await query('SELECT * FROM users WHERE id = ANY($1::text[])', [ids])
+  return rows.map(rowToUser)
+}
+
 export async function findById(id) {
   const { rows } = await query('SELECT * FROM users WHERE id = $1', [String(id || '')])
   return rowToUser(rows[0])
