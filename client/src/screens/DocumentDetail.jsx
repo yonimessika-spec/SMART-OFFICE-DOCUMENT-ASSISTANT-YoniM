@@ -29,6 +29,8 @@ import FieldList from '../components/FieldList.jsx'
 import FieldValue from '../components/FieldValue.jsx'
 import StatusBadge from '../components/StatusBadge.jsx'
 import ErrorMessage from '../components/ErrorMessage.jsx'
+import ReviewRequestDialog from '../components/ReviewRequestDialog.jsx'
+import ReviewRequestsCard from '../components/ReviewRequestsCard.jsx'
 
 // F6 Detail view + review. See src/locales for all UI copy.
 
@@ -49,6 +51,8 @@ export default function DocumentDetail() {
   const [phase, setPhase] = useState('idle') // idle | saving | done | error
   const [error, setError] = useState(null)
   const [savedAs, setSavedAs] = useState(null) // 'Reviewed' | 'Needs Review'
+  const [flagOpen, setFlagOpen] = useState(false) // review-request dialog
+  const [requestsVersion, setRequestsVersion] = useState(0) // bumps to reload the Review requests card
 
   // "Back" points in the reading direction: left in LTR, right in RTL.
   const BackIcon = i18n.dir() === 'rtl' ? ChevronRight : ChevronLeft
@@ -75,8 +79,10 @@ export default function DocumentDetail() {
   // Shared review-submission path. Both action buttons call this — only the
   // status differs. The early return + the buttons' `disabled` both guard
   // against a double-submit while a request is in flight.
+  // Resolves { ok: true } or { ok: false, error } so the flag dialog can decide
+  // whether to go on and email the recipients.
   async function submitReview(status) {
-    if (phase === 'saving') return
+    if (phase === 'saving') return { ok: false, error: null }
     setPhase('saving')
     setError(null)
     try {
@@ -91,13 +97,16 @@ export default function DocumentDetail() {
         applyReview(doc.document_id, payload)
         setSavedAs(status)
         setPhase('done')
-      } else {
-        setError(new Error('Unexpected response'))
-        setPhase('error')
+        return { ok: true }
       }
+      const unexpected = new Error('Unexpected response')
+      setError(unexpected)
+      setPhase('error')
+      return { ok: false, error: unexpected }
     } catch (err) {
       setError(err)
       setPhase('error')
+      return { ok: false, error: err }
     }
   }
 
@@ -158,6 +167,9 @@ export default function DocumentDetail() {
         </CardContent>
       </Card>
 
+      {/* Who was asked to look at this document. Every role can see it. */}
+      <ReviewRequestsCard documentId={doc.document_id} refreshKey={requestsVersion} />
+
       {/* Review actions — Admin + Submitter only. Viewers get a read-only page;
           the proxy also rejects /api/review for a Viewer role (defence in depth). */}
       {canReview && (
@@ -208,7 +220,7 @@ export default function DocumentDetail() {
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => submitReview('Needs Review')}
+                  onClick={() => setFlagOpen(true)}
                   disabled={phase === 'saving'}
                 >
                   {phase === 'saving' && <Spinner />}
@@ -219,6 +231,16 @@ export default function DocumentDetail() {
           </form>
         </CardContent>
       </Card>
+      )}
+
+      {canReview && (
+        <ReviewRequestDialog
+          doc={doc}
+          open={flagOpen}
+          onOpenChange={setFlagOpen}
+          flag={() => submitReview('Needs Review')}
+          onChanged={() => setRequestsVersion((v) => v + 1)}
+        />
       )}
     </section>
   )
