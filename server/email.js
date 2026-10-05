@@ -124,7 +124,8 @@ export function buildPasswordEmail({ purpose, username, link, hours }) {
 <p>Your username: <strong>${esc(username)}</strong></p>
 <p>Use the button below to choose your password. The link works once and expires in ${hours} hours.</p>
 ${button(link, 'Set your password')}
-<p style="font-size:13px;color:#555555;">The app is at <a href="${esc(appUrl)}">${esc(appUrl)}</a>.</p>`,
+<p style="font-size:13px;color:#555555;">The app is at <a href="${esc(appUrl)}">${esc(appUrl)}</a>.</p>
+<p style="font-size:13px;color:#555555;">If you do not see this email, check your spam folder.</p>`,
     )
     return { subject, html }
   }
@@ -135,7 +136,8 @@ ${button(link, 'Set your password')}
 <p>Your username: <strong>${esc(username)}</strong></p>
 <p>Use the button below to choose a new password. The link works once and expires in ${hours} hours. Your current password keeps working until you use it.</p>
 ${button(link, 'Choose a new password')}
-<p style="font-size:13px;color:#555555;">The app is at <a href="${esc(appUrl)}">${esc(appUrl)}</a>.</p>`,
+<p style="font-size:13px;color:#555555;">The app is at <a href="${esc(appUrl)}">${esc(appUrl)}</a>.</p>
+<p style="font-size:13px;color:#555555;">If you do not see this email, check your spam folder.</p>`,
   )
   return { subject, html }
 }
