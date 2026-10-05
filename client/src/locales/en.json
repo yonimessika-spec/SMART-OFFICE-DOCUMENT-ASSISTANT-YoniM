@@ -64,7 +64,8 @@
     "emailUpdated": "Email for {{username}} updated.",
     "emailLogged": "Done, but this server is in dev mode: no email was sent. The link is in the server console.",
     "emailFailed": "“{{username}}” still exists, but the email could not be sent.",
-    "emailFailedPlaceholder": "“{{username}}” has a placeholder email address, so no email was sent. Edit the address first, then resend."
+    "emailFailedPlaceholder": "“{{username}}” has a placeholder email address, so no email was sent. Edit the address first, then resend.",
+    "spamHint": "If you do not see the email, ask them to check their spam folder."
   },
   "common": {
     "loading": "Loading…",

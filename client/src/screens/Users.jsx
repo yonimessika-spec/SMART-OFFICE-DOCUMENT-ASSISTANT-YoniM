@@ -73,6 +73,8 @@ export default function Users() {
     flash({
       key: result?.status === 'logged' ? 'users.emailLogged' : successKey,
       params: { username: u.username, email: u.email },
+      // Only a real send can land in spam; dev-console mode sends nothing.
+      hint: result?.status === 'sent',
     })
   }
 
@@ -184,7 +186,10 @@ export default function Users() {
 
       {notice && (
         <Alert>
-          <AlertDescription>{t(notice.key, notice.params)}</AlertDescription>
+          <AlertDescription className="gap-1">
+            <p>{t(notice.key, notice.params)}</p>
+            {notice.hint && <p className="text-xs text-muted-foreground">{t('users.spamHint')}</p>}
+          </AlertDescription>
         </Alert>
       )}
 
