@@ -9,3 +9,13 @@
   to = "https://smart-office-document-assistant-yonim.onrender.com/auth/:splat"
   status = 200
   force = true
+
+# SPA fallback: deep links such as /set-password?token=... must load index.html.
+# MUST stay last: Netlify applies the first matching rule, so the /api/* and
+# /auth/* proxy rules above win for those paths. status 200 is a rewrite, not a
+# redirect, so the URL (and its query string) is preserved. The page route
+# /set-password does not collide with the API path /auth/set-password/....
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
