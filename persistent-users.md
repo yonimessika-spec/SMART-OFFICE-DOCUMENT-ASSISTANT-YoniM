@@ -191,6 +191,19 @@ All against a throwaway server on port 5066 with throwaway seed credentials and 
   banner, reused or missing token shows the generic message), Change password screen,
   Dashboard still loads through the proxy.
 
+## Session invalidation (follow-up)
+
+`users.password_changed_at` (nullable, added with `ADD COLUMN IF NOT EXISTS`) is set from the
+server clock whenever a password is set via an invite or reset link, changed via
+change-password, or reset by Admin recovery. `authRequired` rejects a token whose `iat` is earlier
+than it (whole seconds), with the same 401 and cookie clear as an expired session. A NULL value
+accepts every session, so existing users are unaffected until their password changes.
+change-password issues a fresh cookie so the tab in use stays signed in. The server clock is used
+for both the timestamp and `iat` on purpose, so a database clock skew cannot reject a fresh session.
+An Admin sending a reset link does not cut sessions; completing the link does.
+Tested on the Neon dev branch: 28 session checks plus the 65-check suite, all passing. A real
+email was never sent; the request body to the n8n webhook was checked against a local mock.
+
 ## Not verified / known limitations
 
 - **Real email through n8n has not been sent.** The workflow has not been imported yet. The
@@ -202,9 +215,9 @@ All against a throwaway server on port 5066 with throwaway seed credentials and 
   production (browser -> Netlify -> Render's proxy -> server). If that is wrong, every
   visitor shares one IP bucket. IP-level limits are generous for that reason and the tight
   limit is keyed on IP + username. Set `TRUST_PROXY_HOPS` after checking a real request.
-- **Existing sessions are not invalidated** when a password is changed or reset. A stolen
-  8-hour JWT stays valid until it expires or the user is deleted. Fixing this needs a
-  `password_changed_at` column checked against the token's `iat`.
+- **Session cut-off granularity is one second.** A JWT's `iat` has no sub-second part, so a
+  stolen session issued in the very same second as a password change is not rejected.
+  Everything issued earlier is. See "Session invalidation" below.
 - **Rate limiter is in memory.** It resets on restart and is per instance.
 - **The 15-minute placeholder-email repeat** is verified by reading the code, not by waiting
   15 minutes. The boot-time warning was observed.
