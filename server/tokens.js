@@ -74,10 +74,12 @@ export async function consumeTokenAndSetPassword(raw, passwordHash) {
     )
     if (!spent.rows[0]) return null
     const { user_id: userId, purpose } = spent.rows[0]
-    await client.query('UPDATE users SET password_hash = $1 WHERE id = $2', [
-      passwordHash,
-      userId,
-    ])
+    // The timestamp comes from this process's clock, the same clock that stamps
+    // a session's iat, so a fresh session is never judged against a skewed DB clock.
+    await client.query(
+      'UPDATE users SET password_hash = $1, password_changed_at = $2 WHERE id = $3',
+      [passwordHash, new Date(), userId],
+    )
     // The password is set; any other outstanding link for this user is now moot.
     await client.query(
       'UPDATE password_tokens SET used_at = now() WHERE user_id = $1 AND used_at IS NULL',

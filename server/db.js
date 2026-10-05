@@ -111,6 +111,9 @@ const MIGRATIONS = [
      created_at  timestamptz NOT NULL DEFAULT now()
    )`,
   `CREATE INDEX IF NOT EXISTS password_tokens_user_idx ON password_tokens (user_id)`,
+  // Sessions issued before this moment are rejected (see authRequired). NULL means
+  // the password was never changed through the app, so every session is accepted.
+  `ALTER TABLE users ADD COLUMN IF NOT EXISTS password_changed_at timestamptz`,
 ]
 
 export async function migrate() {

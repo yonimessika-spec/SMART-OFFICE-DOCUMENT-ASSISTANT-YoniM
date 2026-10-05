@@ -46,6 +46,7 @@ import {
   requireActiveForReset,
   completePasswordSet,
   changePassword,
+  findById,
   isPlaceholderEmail,
   listPlaceholderEmailUsers,
   seedOnBoot,
@@ -205,7 +206,10 @@ app.get('/auth/me', authRequired, (req, res) => {
 app.post('/auth/change-password', authRequired, jsonBody, changePasswordLimit, async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body || {}
-    await changePassword(req.user.id, currentPassword, newPassword)
+    const updated = await changePassword(req.user.id, currentPassword, newPassword)
+    // Every older session (including a stolen one) is now invalid; give this tab a
+    // fresh cookie so the user who just changed the password stays signed in.
+    res.cookie(COOKIE_NAME, signSession(updated), sessionCookieOptions())
     return res.json({ ok: true })
   } catch (err) {
     return sendError(res, err)

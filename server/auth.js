@@ -87,6 +87,14 @@ export async function authRequired(req, res, next) {
     return unauthenticated(res, 'Your account is no longer available.')
   }
 
+  // A password set or changed after this session was issued kills the session.
+  // Compared in whole seconds because iat has no sub-second part; the fresh session
+  // issued by change-password lands in the same second and is therefore accepted.
+  // NULL password_changed_at (never changed through the app) accepts every session.
+  if (user.passwordChangedAt && payload.iat < Math.floor(user.passwordChangedAt.getTime() / 1000)) {
+    return unauthenticated(res, 'Your session has expired. Please sign in again.')
+  }
+
   req.user = { id: user.id, username: user.username, role: user.role }
   next()
 }

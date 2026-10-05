@@ -58,6 +58,7 @@ function rowToUser(r) {
     username: r.username,
     email: r.email,
     passwordHash: r.password_hash,
+    passwordChangedAt: r.password_changed_at,
     role: r.role,
     createdAt: r.created_at,
   }
@@ -286,7 +287,9 @@ export async function completePasswordSet(rawToken, newPassword) {
   return consumeTokenAndSetPassword(rawToken, hash)
 }
 
-// Signed-in user changes their own password.
+// Signed-in user changes their own password. Returns the updated user so the caller
+// can issue a fresh session (every older session is invalidated by the new
+// password_changed_at).
 export async function changePassword(userId, currentPassword, newPassword) {
   const user = await findById(userId)
   if (!user) throw userNotFound()
@@ -297,7 +300,12 @@ export async function changePassword(userId, currentPassword, newPassword) {
     throw badRequest('Choose a password different from the current one.', 'PASSWORD_UNCHANGED')
   }
   const hash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS)
-  await query('UPDATE users SET password_hash = $1 WHERE id = $2', [hash, userId])
+  await query('UPDATE users SET password_hash = $1, password_changed_at = $2 WHERE id = $3', [
+    hash,
+    new Date(),
+    userId,
+  ])
+  return findById(userId)
 }
 
 // ---- boot seeding ----------------------------------------------------------
@@ -346,10 +354,10 @@ export async function seedOnBoot({ admin, others }) {
     const existing = await findByUsername(admin.username)
     if (existing) {
       const hash = await bcrypt.hash(String(admin.password), BCRYPT_ROUNDS)
-      await query("UPDATE users SET role = 'Admin', password_hash = $1 WHERE id = $2", [
-        hash,
-        existing.id,
-      ])
+      await query(
+        "UPDATE users SET role = 'Admin', password_hash = $1, password_changed_at = $2 WHERE id = $3",
+        [hash, new Date(), existing.id],
+      )
     } else {
       await insertSeedUser({ ...admin, role: 'Admin' })
     }
