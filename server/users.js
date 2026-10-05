@@ -237,8 +237,6 @@ export async function updateUser(id, { role, email }, actingUserId) {
         throw badRequest(`Role must be one of: ${ASSIGNABLE_ROLES.join(', ')}.`)
       }
       nextRole = role
-    } else if (role !== undefined && target.role === 'Admin' && id !== actingUserId) {
-      // sending the Admin's own role back unchanged is harmless
     }
 
     let nextEmail = target.email

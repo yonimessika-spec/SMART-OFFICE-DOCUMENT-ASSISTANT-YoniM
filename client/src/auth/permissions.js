@@ -9,8 +9,8 @@
 export const ROLES = ['Admin', 'Submitter', 'Viewer']
 
 // Roles an Admin can assign through the user-management screen. An account's
-// Admin role is set only by the server seed or by editing server/users.json —
-// it can't be granted or removed from the UI (mirrors the proxy).
+// Admin role is set only by the server's env seed (SEED_ADMIN_*) — it can't be
+// granted or removed from the UI (mirrors the proxy).
 export const ASSIGNABLE_ROLES = ['Submitter', 'Viewer']
 
 const CAPABILITIES = {
