@@ -1594,9 +1594,16 @@ fallback; and list anything that could break the live app on first deploy. Chang
 
 **Merge and after:** the branch was merged as pull request #1 on 2026-10-06 and deployed
 (Render with the production `DATABASE_URL`, Netlify unchanged apart from the fallback
-rule). Live verification after the deploy was not observed from this session (no
-access to the live app), so no live results are recorded here; add them here if they
-should be kept.
+rule). 
+**Live verification (confirmed by Yoni on the live site, 2026-10-06; not observed from the
+build session):**
+- **Users survive a redeploy.** A user created from the Users screen on production still
+  logged in with the same password after a Render **Manual Deploy**, and the Render log
+  said "existing users found, nothing to seed". This is the original problem (Entry 21)
+  solved end to end: the account lived in Neon, not on the container disk, and the seed
+  correctly did nothing on a non-empty table.
+- **Review request emails work in production.** Emails sent from production arrived in the
+  recipients' inboxes, and the link inside opened the live Netlify site.
 
 **Documentation pass (this entry's follow-up):** `README.md` now describes the Neon
 Postgres flow (invites, resets, change password, Pending/Active, session invalidation,
