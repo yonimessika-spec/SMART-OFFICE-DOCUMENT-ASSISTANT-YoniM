@@ -1388,3 +1388,229 @@ picker/historical browsing.
   Submitter, and Viewer all see the nav item and can open the screen, with
   Upload/Users still gated exactly as before.
 - No `server/`, `workflows/`, or `CONTRACT.md` changes.
+
+---
+
+## Entry 21: Going live: cross-site cookies, the free-tier disk, cold starts (2026-09-14 to 2026-09-16)
+
+**Prompt (summarised):** A run of short deployment-fix requests after the app was put
+on Netlify (client) and Render (API): the login worked locally but not in
+production; then, once it did, users created in the app kept disappearing; then
+the first page load after idle looked broken. Each was diagnosed, fixed, and
+committed on its own. (Exact wording was not kept; this entry is rebuilt from the
+commits.)
+
+**What was built:**
+- **Cross-site cookie, step 1:** `7a88891`: in production the session cookie
+  became `SameSite=None; Secure` (it had been `Lax`, which browsers refuse to send
+  on a cross-site XHR from the Netlify origin to the Render origin).
+- **Cross-site cookie, step 2:** `b34134f`: even `SameSite=None` cookies are
+  blocked by third-party-cookie protections in some browsers, so the client now
+  calls **relative** `/api` and `/auth` paths in production (`client/src/api/auth.js`,
+  `client.js`), and `51a7e35` added `client/netlify.toml` redirect rules that
+  proxy `/api/*` and `/auth/*` to Render. To the browser the API is now same-origin.
+- **Free-tier disk:** `72f5b11`: Render's free tier has no persistent disk, so
+  `server/users.json` was wiped on every redeploy and after about 15 minutes idle;
+  only the env-seeded Admin survived and two hand-made Submitter/Viewer accounts
+  had been lost twice. Stop-gap: `SEED_SUBMITTER_*` / `SEED_VIEWER_*` recovery
+  seeds, recreated on every boot. (The real fix is Entry 22.)
+- **Cold start:** `87cb385`: after 5 seconds of waiting on the first request the
+  client shows "waking up the server" (EN/HE) instead of a blank spinner.
+- `1564a46`: README: live-deployment section and corrected cookie description.
+
+**Decisions / notes:**
+- Fixing the cookie in two steps was not planned: the first change was correct but
+  not sufficient, which is why the redirect-proxy approach exists. The README's
+  Live Deployment section explains both.
+- The recovery seeds were explicitly a patch ("env vars survive, files don't"); they
+  made the free-tier limitation visible enough that a real database became the next
+  task.
+- Not changed: n8n workflows, the document flow, the auth rules themselves.
+
+---
+
+## Entry 22: Persistent users (Neon Postgres) + email invites and password links (2026-10-05)
+
+**Prompt (summarised):** Render's free tier has no persistent disk, so every user an
+Admin creates is lost on redeploy. Store users permanently, for free: Neon Postgres,
+a `users` and a `password_tokens` table, idempotent migrations, async store, role
+re-read on every request. Seed the three env users only when the table is empty,
+restore the Admin if none exists. Replace temporary passwords with an email invite
+(single-use link, 48 hours) sent through a new generic n8n **Send Email** workflow;
+add Admin-triggered password reset, a public set-password page, and a signed-in
+change-password screen; rate-limit login and the token endpoints; English and Hebrew
+UI with RTL checked. Send a short plan first and wait for approval; test only on a
+separate Neon dev branch; work on `feature/persistent-users`, do not merge.
+Approvals and vetoes after the plan: a missing `SEED_ADMIN_EMAIL` keeps a
+placeholder so the deploy cannot go down, with a loud repeated warning and a clear
+flag on the Users screen; an unreachable database at boot means a clear error and
+exit, never a file or empty-store fallback.
+
+**What was built** (details, schema, endpoints and env lines in `persistent-users.md`):
+- `server/db.js` (pool, SSL, stale-connection retry, advisory-locked migrations, boot
+  retries), `server/tokens.js` (hashed single-use tokens), `server/users.js` (async
+  Postgres store, guards, seeding), `server/email.js` (n8n sender, dev console mode,
+  templates), `server/rateLimit.js`, route changes in `server/index.js` and `auth.js`.
+- `workflows/Project Part 2 - Document Assistant - Send Email.json` (Webhook, validate,
+  Gmail, respond 200 / 400 / 502).
+- Client: invite-based Users screen (email, Pending/Active, edit email, resend invite,
+  reset password, placeholder-email banner), public `/set-password` page, Change
+  password screen, login success banner, EN/HE strings with key parity.
+- `client/netlify.toml`: a final `/* -> /index.html 200` rule so deep links load.
+
+**Decisions / notes:**
+- Tokens are 32 random bytes, only the SHA-256 hash is stored, spending one is a single
+  atomic `UPDATE ... WHERE used_at IS NULL AND expires_at > now()`, and issuing a new
+  one invalidates the older unused ones. Reset is Admin-triggered only (no public
+  "forgot password", so no username probing). Login timing is equalised for unknown,
+  pending and wrong-password cases.
+- "Pending" is derived (`password_hash IS NULL`), not a stored status that could drift.
+- A failed email never rolls back the user or the reset; the UI shows a warning with a
+  Resend action.
+- Tested against the Neon dev branch only: 64 API checks (permissions, duplicates,
+  expired and reused tokens, a concurrent token spend where exactly one wins), seeding
+  (empty table, deleted user stays deleted, Admin recovery), database-unreachable exit,
+  rate limit, and the browser flows in English and Hebrew. Real Gmail sending was not
+  testable until the workflow was imported.
+- Known gaps recorded at the time: sessions survived a password change (fixed in
+  Entry 23), the client IP behind Netlify + Render is unverified for rate limiting.
+- Commits: `79d1f66`, `374971e`, `1462039`, `69ce417`, `a665c49`, `722197d`, `413b01a`.
+
+---
+
+## Entry 23: Session invalidation, spam-folder hint, and a seeding bug (2026-10-05)
+
+**Prompt (summarised):** A small security fix on the same branch: after a password
+change or an Admin reset, existing sessions stayed valid until they expired, so a
+stolen session would survive a reset. Add `users.password_changed_at` (idempotent
+migration), set it on every password set or change, make `authRequired` reject a
+token issued earlier, and give the person who just changed their password a fresh
+cookie. Also: add the line "If you do not see this email, check your spam folder." to
+the invite and reset emails and show the same hint on the Users screen after a send
+(EN and HE). Tests on the Neon dev branch only.
+
+**What was built:**
+- Migration + stamping in `server/db.js`, `tokens.js`, `users.js`; the iat check in
+  `server/auth.js`; fresh cookie from `POST /auth/change-password` in `index.js`.
+- Spam-folder line in both email templates; Users-screen hint after a real send (not
+  shown in dev-console mode); `users.spamHint` in `en.json` and `he.json`.
+- Commits: `8a3962e` (sessions), `53b08ec` and `0fa3513` (spam hint), `d7794ac` (notes).
+
+**Decisions / notes:**
+- **One-second granularity, on purpose.** JWT `iat` has no sub-second part, so the
+  comparison is in whole seconds; otherwise the fresh cookie issued right after a change
+  could be judged older than the change. The cost is that a stolen session issued in
+  that same second survives (documented in `persistent-users.md`).
+- **App clock, not database clock,** for the timestamp, so clock skew between Render and
+  Neon cannot reject a freshly issued session. A NULL value accepts every session, so
+  nobody is signed out until their password actually changes. Sending a reset link does
+  not end sessions; completing it does.
+- 28 new session checks passed; the earlier 65-check suite needed one test adjusted (it
+  reused a session across a deliberate reset, which the new rule correctly kills).
+- **Bug found while setting up the dev server:** the real local env had 7-character
+  Submitter and Viewer seed passwords, and the seed's 8-character minimum aborted the
+  first boot after the Admin row had already been written. Fix (`77f766c`): seed
+  passwords have no minimum length (existing sign-ins must keep working; the rule applies
+  to passwords users choose), and a bad optional Submitter/Viewer seed is logged and
+  skipped; only the Admin seed can stop the boot.
+
+---
+
+## Entry 24: Review requests (2026-10-05 to 2026-10-06)
+
+**Prompt (summarised):** "Flag as needs review" should open a dialog that lets the
+person pick users to notify, edit a message, and send a review request by email, with
+everything stored and shown on the document. Agreed in advance: only from the flag
+button; any role can be picked, including Viewers; picking is optional ("Flag and
+send request" or "Flag without sending", the latter unchanged); one email per
+recipient with role-specific wording and Reply-To the requester; no Drive link; Viewers
+get no new permission and answer by email; requests stored in Neon, not the Sheet; the
+document is flagged even if emails fail, with a Resend for the failures. Send a short
+plan and wait for "go". After the plan, two changes: pending users stay selectable and
+marked, with a warning in the dialog and a "set your password first" opening line in
+their email; and the email fields must come from the document as the Sheet holds it,
+not from the client. Work on `feature/review-requests`, tested on the Neon dev branch.
+
+**What was built** (details, schema, endpoints and tests in `review-requests.md`):
+- Tables `review_requests` and `review_request_recipients`; `server/documents.js` (Sheet
+  lookup by id), `server/reviewRequests.js` (validation, storage, sending, resend),
+  `server/reviewRoutes.js`, a role-specific, escaped email builder in `server/email.js`,
+  and `GET /auth/users/directory` for the picker (no email addresses).
+- Client: `ReviewRequestDialog.jsx` (searchable picker with role and Pending badges,
+  message with counter, three actions, result summary, Resend), `ReviewRequestsCard.jsx`
+  (read-only for every role), wiring in `DocumentDetail.jsx`, EN/HE strings.
+- Send Email workflow: sender name set (the Reply To option and the n8n attribution
+  switch were already correct).
+- Commits: `bb05ece`, `2e8ebc5`, `6ad6a13`, `e2a5806`, `16afbe7`, `3854f64`, `7d8a2b7`.
+
+**Decisions / notes:**
+- **The client flags, then asks.** The dialog calls the existing `POST /api/review`
+  first and only then `POST /api/review-requests`, which never changes a status. This
+  keeps flag-only identical to before, keeps mock-review mode working, and means nobody
+  is emailed about a document that failed to flag. If the second step fails the dialog
+  says so and retries only that step.
+- **Server builds the email from the Sheet.** The client sends only the document id,
+  recipients and message; every value shown in the email is HTML-escaped (tested with
+  `<script>`, `<img onerror>`, quotes and ampersands in the message, file name and
+  fields), and the private Drive link is never included.
+- **Bug found by testing:** the per-user rate limit counted malformed requests, so a few
+  typos used up the quota. Shape validation now runs before the limiter.
+- 78 API checks passed against a mock of the n8n webhooks (so email bodies could be
+  inspected), plus browser checks in English and Hebrew: picker, pending warning, failing
+  emails then Resend, flag-only, the Review requests card as Admin and as Viewer.
+- Real Gmail delivery could not be tested from the build environment.
+
+---
+
+## Entry 25: Pre-merge check, merge, and post-merge verification (2026-10-06)
+
+**Prompt (summarised):** Before merging `feature/review-requests` (which contains
+`feature/persistent-users`), do a read-only check: confirm no `.env` file, connection
+string, password, token or secret is in the diff or any commit message; confirm the server
+refuses to start with a clear error when `DATABASE_URL` is missing and list every
+environment variable it now reads, marking which ones the old Render setup lacked; confirm
+the seed on an empty database recreates the same users from the `SEED_*` variables and that
+a missing `SEED_*_EMAIL` cannot stop the boot; confirm production uses n8n for email
+automatically; confirm the Netlify `/api/*` and `/auth/*` rules come before the SPA
+fallback; and list anything that could break the live app on first deploy. Change nothing.
+
+**What was found:**
+- Diff: 31 files, 19 commits, no secret anywhere (the real database host and credentials,
+  n8n and JWT secrets, seed passwords and seed emails were all searched for in the diffs and
+  commit messages: zero hits). The only env-like file was `server/.env.example`.
+- A server started without `DATABASE_URL` prints a clear message and exits with code 1.
+  New variables the old Render setup lacked: `DATABASE_URL` (required), the three
+  `SEED_*_EMAIL`, `N8N_EMAIL_PATH`, and the optional `EMAIL_MODE`, `APP_BASE_URL`,
+  `TRUST_PROXY_HOPS`.
+- Seeding creates Admin, Submitter and Viewer with the same usernames and passwords; a
+  missing `SEED_*_EMAIL` becomes a placeholder and cannot stop the boot (a malformed
+  Admin email can).
+- In production email uses n8n when `NODE_ENV=production` **and** `N8N_EMAIL_PATH` is
+  set, so `EMAIL_MODE` is not needed but `N8N_EMAIL_PATH` is. Netlify order was correct.
+- First-deploy risks listed, among them: a missing or wrong `DATABASE_URL`, a missing
+  `N8N_EMAIL_PATH` or unpublished Send Email workflow, a missing `SEED_*_EMAIL` (review
+  requests then refuse for that requester), slower cold starts, every user signed out
+  once (new user ids), and the unverified proxy hop count.
+
+**Merge and after:** the branch was merged as pull request #1 on 2026-10-06 and deployed
+(Render with the production `DATABASE_URL`, Netlify unchanged apart from the fallback
+rule).
+
+**Live verification (confirmed by Yoni on the live site, 2026-10-06; not observed from the
+build session):**
+- **Users survive a redeploy.** A user created from the Users screen on production still
+  logged in with the same password after a Render **Manual Deploy**, and the Render log
+  said "existing users found, nothing to seed". This is the original problem (Entry 21)
+  solved end to end: the account lived in Neon, not on the container disk, and the seed
+  correctly did nothing on a non-empty table.
+- **Review request emails work in production.** Emails sent from production arrived in the
+  recipients' inboxes, and the link inside opened the live Netlify site.
+
+**Documentation pass (this entry's follow-up):** `README.md` now describes the Neon
+Postgres flow (invites, resets, change password, Pending/Active, session invalidation,
+rate limiting, seeding rules), the new Review requests section, Neon and Send Email setup
+steps, the new environment variables, and current known limitations; `auth-and-roles.md`
+was kept as historical build notes with a status note and per-section "superseded"
+banners (a full rewrite was not worth it, because most of its reasoning still holds);
+`persistent-users.md` and `review-requests.md` were corrected where the deploy made
+statements false (branch status, "workflow not imported", "docs not updated").

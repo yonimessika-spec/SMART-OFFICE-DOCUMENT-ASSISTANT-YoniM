@@ -1,5 +1,30 @@
 # Authentication & roles — build notes (Section 15)
 
+> **Status: historical build notes, partly superseded.** This file records how
+> login + RBAC was first built (September 2026), when users lived in a local
+> `server/users.json`. Users now live in **Neon Postgres**, are invited and reset
+> by email, and sessions end when a password changes. The current model is in:
+>
+> - the README, section **Authentication & roles** (user-facing summary), plus its
+>   **Seeding** and **Review requests** sections;
+> - `persistent-users.md` (schema, endpoints, token and session design, decisions);
+> - `review-requests.md` (who can be asked to review, and how).
+>
+> What changed, so you can read the rest of this file correctly:
+> - **Storage (section 1)**, **seeding (section 3)**, the **`users.json` remarks in
+>   sections 6, 7 and 10**, and the **file list (section 8)** are out of date and are
+>   marked below. Nothing reads `users.json` any more.
+> - **Sections 2, 4 (apart from the cookie and session notes below), 5 and 6's
+>   guard table** still describe how it works: bcrypt passwords, JWT in an httpOnly
+>   cookie, role re-read on every request, server-side role gates, self-management
+>   guards.
+> - **Cookie:** in production it is `SameSite=None; Secure` (not `Lax`).
+> - **New since this was written:** there is no temporary password any more (an
+>   Admin invites by email and the user sets their own); users can change their own
+>   password; a password change or reset invalidates every older session; login and
+>   token endpoints are rate limited; the roles table gained "ask others to review
+>   by email" for Admin and Submitter (Viewers can be asked, by email).
+
 Decisions and non-obvious workarounds from building login + RBAC. Written as the
 feature was built; the README's "Authentication & roles" section is the
 user-facing summary drawn from this.
@@ -7,6 +32,13 @@ user-facing summary drawn from this.
 ---
 
 ## 1. Where the user store lives — local JSON, not Google Sheets
+
+> **Superseded.** Users are now in Neon Postgres (tables `users` and
+> `password_tokens`); the JSON file, its atomic-write queue and its in-memory cache
+> are gone. The reasoning below for *not* using Google Sheets still holds. The
+> reasoning against SQLite became moot once a hosted database was needed: the free
+> Render tier has no persistent disk, so the file was wiped on every redeploy.
+> See `persistent-users.md`.
 
 `server/users.json` (git-ignored), shape:
 
@@ -51,6 +83,12 @@ the cache.
   which usernames exist.
 
 ## 3. Initial Admin seed
+
+> **Superseded.** The env seed now creates the Admin, Submitter and Viewer only when
+> the `users` table is empty, restores the env Admin if no Admin exists, and a
+> deleted user stays deleted. To reset the Admin password you no longer delete a
+> file: an Admin can reset it in the app, or the recovery rule re-applies the env
+> password if no Admin exists. See the README **Seeding** section.
 
 On boot, if `users.json` has **zero** users, one Admin is created from
 `SEED_ADMIN_USERNAME` / `SEED_ADMIN_PASSWORD` (hashed on creation). Once any user
@@ -131,6 +169,9 @@ Review card, no Reopen button; Submitter: no Users nav) and the routes redirect
 
 ## 6. Self-management guards (explicit, not left to chance)
 
+> The guards below are unchanged. Where the table says "edits `users.json`", read
+> "the env seed": Admin membership comes only from the seed.
+
 Through the user-management API, an Admin **cannot**:
 
 | Attempt | Result | Why |
@@ -149,6 +190,12 @@ role dropdown and no Remove button.
 
 ## 7. New env vars (add to `server/.env` — see `server/.env.example`)
 
+> **Incomplete.** This is the list from the first build. The full, current list
+> (`DATABASE_URL`, the `SEED_*_EMAIL` variables, `N8N_EMAIL_PATH`, `EMAIL_MODE`,
+> `APP_BASE_URL`, `TRUST_PROXY_HOPS`) is in the README Setup section and
+> `server/.env.example`. The `SEED_ADMIN_*` row below also now means "the seed
+> used when the users table is empty", not "when `users.json` is empty".
+
 | Var | Purpose |
 |---|---|
 | `JWT_SECRET` | signs session tokens; ≥32 random chars; changing it logs everyone out |
@@ -159,6 +206,13 @@ role dropdown and no Remove button.
 New server dependencies: `bcryptjs`, `jsonwebtoken`, `cookie-parser`.
 
 ## 8. Files
+
+> **Out of date.** `server/users.js` is now the Postgres store; the database layer is
+> `server/db.js`, password tokens are `server/tokens.js`, email is `server/email.js`,
+> rate limiting is `server/rateLimit.js`, and review requests are
+> `server/reviewRequests.js` / `reviewRoutes.js`. Client additions include
+> `SetPassword.jsx`, `ChangePassword.jsx`, `ReviewRequestDialog.jsx` and
+> `ReviewRequestsCard.jsx`. See `persistent-users.md` and `review-requests.md`.
 
 **Server**
 - `server/users.js` — the JSON store, bcrypt, validation, seed, self-guards
@@ -193,6 +247,12 @@ reflected on next navigation with no re-login, and the Hebrew user-management
 screen end-to-end (add → change role → remove, each with its Hebrew toast).
 
 ## 10. Known gaps (by design / scope)
+
+> **Mostly resolved or changed**, as of the Neon / invite work: users can now change
+> their own password and an Admin can reset anyone's (still no *public* "forgot
+> password", on purpose); the user store is no longer a single-writer JSON file; and
+> sign-in is rate limited. Still true: no self-registration, an 8-hour fixed session,
+> no "remember me" or refresh tokens. The list below is the original.
 
 - No password reset / "forgot password" flow — an Admin sets a new user's temp
   password; users can't change their own yet.

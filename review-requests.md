@@ -1,7 +1,6 @@
 # Review requests
 
-Branch: `feature/review-requests` (cut from `feature/persistent-users`). Not merged, nothing
-pushed to master.
+Status: **merged to master and live** (pull request #1, 2026-10-06, together with persistent users; see `persistent-users.md`). It was built on the branch `feature/review-requests`, cut from `feature/persistent-users`. The user-facing summary is the README section "Review requests". The sections below are the build notes as written before the deploy; where something has since changed it is marked.
 
 "Flag as needs review" in the document detail view now opens a dialog. The person flagging can
 pick anyone with a real email, edit a message, and send a review request by email. Everything is
@@ -94,7 +93,7 @@ invites). Netlify: nothing.
 
 ## n8n: what I found and changed
 
-Checked `Send Email.json` rather than assuming:
+Checked `Send Email.json` rather than assuming (if the live workflow was imported before the sender-name change, the hand-edit list below brings it up to date):
 
 - `replyTo` **is** passed to the Gmail node's Reply To option
   (`options.replyTo = $('Webhook').first().json.body.replyTo || ''`).
@@ -157,9 +156,10 @@ all passing:
 
 ## Not verified / limitations
 
-- **Real Gmail sending** was not tested (the workflow is not imported on my side); the request body
-  to the webhook was checked against the mock. Whether the live Gmail node honors Reply To and
-  Sender Name is for you to confirm with the PowerShell test above.
+- **Real Gmail sending at build time:** it was not tested from the build environment; the request body
+  to the webhook was checked against a mock. *Since the live deploy* the Send Email workflow is
+  imported and published and emails go out through it. Whether the live Gmail node honors Reply To and
+  Sender Name is not recorded as confirmed here; the PowerShell test above checks it.
 - Upload (multi-file) and CSV export code was not touched; I did not click through them.
 - Deep-link emails go to `<app base>/document/<id>`. The document must be in the dashboard data
   (the app loads documents on sign-in). A recipient who is not signed in sees the login first; the URL
@@ -168,4 +168,4 @@ all passing:
 - A pending recipient can receive the email but cannot open the document until they set a password.
 - The 10-second duplicate guard and the in-flight resend guard are per process (fine for one Render
   instance).
-- `README.md`, `PROMPTS.md` and `auth-and-roles.md` were not edited, as asked.
+- `README.md`, `PROMPTS.md` and `auth-and-roles.md` were not edited in this pass; they were updated afterwards in the post-deploy documentation pass (branch `docs/post-deploy`).
