@@ -1,6 +1,6 @@
 # Persistent users (Neon Postgres) + email invites
 
-Branch: `feature/persistent-users` (not merged, not pushed to master).
+Status: **merged to master and live** (pull request #1, 2026-10-06, together with review requests; see `review-requests.md`). It was built on the branch `feature/persistent-users`. Render holds the production `DATABASE_URL`, Netlify serves the client, and invite and reset emails go out through the n8n Send Email workflow. The user-facing summary is in the README (Authentication & roles, Seeding, Setup). The sections below are the build notes as written before the deploy; where something has since changed it is marked.
 
 ## Why
 
@@ -132,6 +132,8 @@ does not collide with the API path `/auth/set-password/...`.
 
 ## n8n import checklist ("Document Assistant - Send Email")
 
+> Done for production: the workflow is imported and published, and invites and resets are sent through it. The steps are kept as the setup recipe for a fresh n8n (the README Setup, step 3, repeats them).
+
 1. n8n -> Workflows -> Import from file -> choose
    `workflows/Project Part 2 - Document Assistant - Send Email.json`.
 2. Open the **Webhook** node: credential must be `Doc Assistant API Secret`
@@ -187,7 +189,7 @@ All against a throwaway server on port 5066 with throwaway seed credentials and 
   from the same IP still gets through.
 - Browser: Users screen (EN and HE/RTL), add user, Pending/Active, placeholder banner and
   row flag, reset to a placeholder email shows the warning, real-send mode with the
-  workflow not imported shows "user kept, email failed" with Resend, `/set-password`
+  workflow not yet imported (at test time) shows "user kept, email failed" with Resend, `/set-password`
   (EN and HE/RTL, mismatch and short-password hints, success redirects to login with the
   banner, reused or missing token shows the generic message), Change password screen,
   Dashboard still loads through the proxy.
@@ -202,16 +204,16 @@ accepts every session, so existing users are unaffected until their password cha
 change-password issues a fresh cookie so the tab in use stays signed in. The server clock is used
 for both the timestamp and `iat` on purpose, so a database clock skew cannot reject a fresh session.
 An Admin sending a reset link does not cut sessions; completing the link does.
-Tested on the Neon dev branch: 28 session checks plus the 65-check suite, all passing. A real
-email was never sent; the request body to the n8n webhook was checked against a local mock.
+Tested on the Neon dev branch: 28 session checks plus the 65-check suite, all passing. At build time no real email had been sent; the request body to the n8n webhook was checked against a local mock (the workflow has since been imported and is live).
 
 ## Not verified / known limitations
 
-- **Real email through n8n has not been sent.** The workflow has not been imported yet. The
-  code path up to the webhook call is tested (it got HTTP 404 from the live n8n, as
-  expected without the workflow). The Gmail node parameters were written from the existing
-  Daily Email Summary workflow and `replyTo` handling is untested; import and run the test
-  command above.
+- **Real email at build time.** When this was written the workflow had not been imported: the
+  code path up to the webhook call was tested (HTTP 404 from the live n8n, as expected without
+  the workflow) and the Gmail node parameters came from the Daily Email Summary workflow.
+  *Since the live deploy* the workflow is imported and published and invite and reset emails
+  are sent through it. Whether the Gmail node honors `replyTo` (used by review requests) is not
+  recorded as checked here; the test command in `review-requests.md` covers it.
 - **Client IP behind Netlify + Render is unverified.** `trust proxy` defaults to 2 hops in
   production (browser -> Netlify -> Render's proxy -> server). If that is wrong, every
   visitor shares one IP bucket. IP-level limits are generous for that reason and the tight
@@ -225,8 +227,8 @@ email was never sent; the request body to the n8n webhook was checked against a 
 - **pg SSL warning:** with a `sslmode=require` URL, pg 8 prints a notice that `require` is
   an alias for `verify-full`. It is a warning only; adding `sslmode=verify-full` to the
   connection string silences it and keeps today's behaviour.
-- **Stale docs** (not touched in this pass, per instruction): `README.md`, `PROMPTS.md`
-  and `auth-and-roles.md` still describe `users.json`, the temporary-password form, and
-  "the user store resets on redeploy". They need a follow-up pass.
+- **Docs:** `README.md`, `PROMPTS.md` and `auth-and-roles.md` described `users.json`, the
+  temporary-password form and "the user store resets on redeploy" when this was written. They were
+  updated in the post-deploy documentation pass (branch `docs/post-deploy`).
 - The Neon free tier suspends after idle; the first request after a quiet period can take a
   few seconds extra (the pool timeout is 15s and boot retries cover a cold start).
