@@ -1,0 +1,147 @@
+{
+  "name": "Doc Assistant - Send Email",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "send-email",
+        "authentication": "headerAuth",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [0, 0],
+      "id": "5b1d3c0e-6a1f-4f0e-9c1a-2f6d7e8a9b01",
+      "name": "Webhook",
+      "webhookId": "7c2e4d1f-3b5a-4c6d-8e7f-9a0b1c2d3e4f",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "xVJ2D4rOZpvfPSBh",
+          "name": "Doc Assistant API Secret"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "a1f0c2d4-1111-4a2b-8c3d-000000000001",
+              "leftValue": "={{ typeof $json.body.to === 'string' && /^[^\\s@]+@[^\\s@]+\\.[^\\s@]{2,}$/.test($json.body.to) && typeof $json.body.subject === 'string' && $json.body.subject.length > 0 && typeof $json.body.html === 'string' && $json.body.html.length > 0 }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [224, 0],
+      "id": "5b1d3c0e-6a1f-4f0e-9c1a-2f6d7e8a9b02",
+      "name": "Valid Request?"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Webhook').first().json.body.to }}",
+        "subject": "={{ $('Webhook').first().json.body.subject }}",
+        "emailType": "html",
+        "message": "={{ $('Webhook').first().json.body.html }}",
+        "options": {
+          "appendAttribution": false,
+          "senderName": "Smart Office Document Assistant",
+          "replyTo": "={{ $('Webhook').first().json.body.replyTo || '' }}"
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [448, -96],
+      "id": "5b1d3c0e-6a1f-4f0e-9c1a-2f6d7e8a9b03",
+      "name": "Send Email",
+      "onError": "continueErrorOutput",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "lKPK3kM4VY7vkZgf",
+          "name": "Gmail GoldenShabbat"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"status\": \"sent\"\n}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [672, -192],
+      "id": "5b1d3c0e-6a1f-4f0e-9c1a-2f6d7e8a9b04",
+      "name": "Respond - Sent"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"status\": \"error\",\n  \"error_code\": \"EMAIL_SEND_FAILED\",\n  \"message\": \"The email service could not send the message.\"\n}",
+        "options": {
+          "responseCode": 502
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [672, 0],
+      "id": "5b1d3c0e-6a1f-4f0e-9c1a-2f6d7e8a9b05",
+      "name": "Respond - Send Failed"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"status\": \"error\",\n  \"error_code\": \"INVALID_REQUEST\",\n  \"message\": \"Body must include a valid 'to' address, a 'subject' and an 'html' body.\"\n}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [448, 144],
+      "id": "5b1d3c0e-6a1f-4f0e-9c1a-2f6d7e8a9b06",
+      "name": "Respond - Invalid"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [[{ "node": "Valid Request?", "type": "main", "index": 0 }]]
+    },
+    "Valid Request?": {
+      "main": [
+        [{ "node": "Send Email", "type": "main", "index": 0 }],
+        [{ "node": "Respond - Invalid", "type": "main", "index": 0 }]
+      ]
+    },
+    "Send Email": {
+      "main": [
+        [{ "node": "Respond - Sent", "type": "main", "index": 0 }],
+        [{ "node": "Respond - Send Failed", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": []
+}

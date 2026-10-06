@@ -55,7 +55,7 @@ function unauthenticated(res, message) {
 
 // Gate: valid session cookie required. Attaches req.user = { id, username, role }
 // with the role taken from the store on THIS request (not from the token).
-export function authRequired(req, res, next) {
+export async function authRequired(req, res, next) {
   const token = req.cookies?.[COOKIE_NAME]
   if (!token) {
     return res
@@ -71,9 +71,28 @@ export function authRequired(req, res, next) {
     return unauthenticated(res, 'Your session has expired. Please sign in again.')
   }
 
-  const user = findById(payload.sub)
+  let user
+  try {
+    user = await findById(payload.sub)
+  } catch (err) {
+    // Database trouble is not the user's session being bad: do not clear the
+    // cookie, just tell the client to try again.
+    console.error(`[auth] user lookup failed: ${err.message}`)
+    return res.status(503).json({
+      error_code: 'STORE_UNAVAILABLE',
+      error: 'The user database is temporarily unavailable. Please try again.',
+    })
+  }
   if (!user) {
     return unauthenticated(res, 'Your account is no longer available.')
+  }
+
+  // A password set or changed after this session was issued kills the session.
+  // Compared in whole seconds because iat has no sub-second part; the fresh session
+  // issued by change-password lands in the same second and is therefore accepted.
+  // NULL password_changed_at (never changed through the app) accepts every session.
+  if (user.passwordChangedAt && payload.iat < Math.floor(user.passwordChangedAt.getTime() / 1000)) {
+    return unauthenticated(res, 'Your session has expired. Please sign in again.')
   }
 
   req.user = { id: user.id, username: user.username, role: user.role }

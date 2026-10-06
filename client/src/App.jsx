@@ -1,7 +1,7 @@
-import { NavLink, Navigate, Route, Routes } from 'react-router-dom'
+import { NavLink, Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { cn } from 'cn'
-import { Languages, LogOut } from 'lucide-react'
+import { KeyRound, Languages, LogOut } from 'lucide-react'
 import { USE_MOCK_DOCUMENTS, USE_MOCK_PROCESS, USE_MOCK_REVIEW } from './api/index.js'
 import { useAuth } from './auth/AuthContext.jsx'
 import { can } from './auth/permissions.js'
@@ -16,6 +16,8 @@ import DailySummary from './screens/DailySummary.jsx'
 import DocumentDetail from './screens/DocumentDetail.jsx'
 import Login from './screens/Login.jsx'
 import Users from './screens/Users.jsx'
+import SetPassword from './screens/SetPassword.jsx'
+import ChangePassword from './screens/ChangePassword.jsx'
 
 // Honestly show which calls are still served by the mock (SPEC.md §1). The list
 // items are the raw endpoint names and stay untranslated.
@@ -36,9 +38,14 @@ const navLink = ({ isActive }) =>
 export default function App() {
   const { t, i18n } = useTranslation()
   const { user, loading, slowWake, logout } = useAuth()
+  const { pathname } = useLocation()
 
   const current = i18n.resolvedLanguage === 'he' ? 'he' : 'en'
   const other = current === 'he' ? 'en' : 'he'
+
+  // Public page reached from an invite / reset email. It needs no session, so it
+  // renders before the loading and login gates below.
+  if (pathname === '/set-password') return <SetPassword />
 
   // Session still being resolved on first load.
   if (loading) {
@@ -100,6 +107,14 @@ export default function App() {
                   {t(`lang.${other}`)}
                 </Button>
 
+                <NavLink
+                  to="/change-password"
+                  className={cn(buttonVariants({ variant: 'ghost', size: 'xs' }), 'text-muted-foreground')}
+                >
+                  <KeyRound aria-hidden="true" />
+                  {t('nav.changePassword')}
+                </NavLink>
+
                 <Button
                   type="button"
                   variant="ghost"
@@ -158,6 +173,7 @@ export default function App() {
               path="/users"
               element={can(role, 'manageUsers') ? <Users /> : <Navigate to="/" replace />}
             />
+            <Route path="/change-password" element={<ChangePassword />} />
             <Route
               path="*"
               element={<p className="text-muted-foreground">{t('common.pageNotFound')}</p>}
