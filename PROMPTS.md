@@ -1594,7 +1594,8 @@ fallback; and list anything that could break the live app on first deploy. Chang
 
 **Merge and after:** the branch was merged as pull request #1 on 2026-10-06 and deployed
 (Render with the production `DATABASE_URL`, Netlify unchanged apart from the fallback
-rule). 
+rule).
+
 **Live verification (confirmed by Yoni on the live site, 2026-10-06; not observed from the
 build session):**
 - **Users survive a redeploy.** A user created from the Users screen on production still
